@@ -24,6 +24,7 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check src/app.js
+          node --check src/highlight.js
           node --check src/worker.js
 
   deploy:
@@ -46,10 +47,11 @@ jobs:
         run: |
           mkdir -p site-dist/src
           cp index.html site-dist/
-          cp src/app.js src/worker.js src/styles.css src/engine.py src/yjsplogo.png site-dist/src/
+          cp src/app.js src/highlight.js src/worker.js src/styles.css src/engine.py src/yjsplogo.png site-dist/src/
           cp -r /tmp/sequence-pyodide/node_modules/pyodide site-dist/src/pyodide
           sed -i "s|./src/app.js|./src/app.js?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./src/styles.css|./src/styles.css?build=${GITHUB_SHA}|" site-dist/index.html
+          sed -i "s|./highlight.js|./highlight.js?build=${GITHUB_SHA}|" site-dist/src/app.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site-dist

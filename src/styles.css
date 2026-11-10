@@ -72,8 +72,22 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .link-button:hover { color: var(--gold); }
 .code-wrap { display: flex; flex: 1; min-height: 350px; overflow: hidden; }
 #gutter { flex: 0 0 51px; margin: 0; padding: 25px 14px 25px 0; text-align: right; background: #101a19; color: #62746c; font: 13px/1.9 "SFMono-Regular", Consolas, "Liberation Mono", monospace; overflow: hidden; user-select: none; border-right: 1px solid #22312d; }
-#source { flex: 1; width: 100%; min-width: 0; resize: none; border: 0; outline: 0; background: transparent; color: #e7ece8; caret-color: var(--gold); padding: 25px 18px; font: 13px/1.9 "SFMono-Regular", Consolas, "Liberation Mono", monospace; tab-size: 4; white-space: pre; }
-#source::selection { background: #8d691c; color: #fff; }
+.code-input { position: relative; flex: 1; min-width: 0; }
+#highlight, #source { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 25px 18px; font: 13px/1.9 "SFMono-Regular", Consolas, "Liberation Mono", monospace; tab-size: 4; white-space: pre; border: 0; }
+#highlight { overflow: hidden; pointer-events: none; color: #e7ece8; }
+#source { resize: none; outline: 0; background: transparent; color: transparent; -webkit-text-fill-color: transparent; caret-color: var(--gold); overflow: auto; }
+#source::selection { background: #806222a8; }
+.tok-keyword { color: #e8b84c; }
+.tok-constant { color: #e9bb79; }
+.tok-function { color: #a8d5c5; }
+.tok-number { color: #e4a878; }
+.tok-string { color: #a5cd91; }
+.tok-comment { color: #778c80; }
+.tok-operator { color: #d8c996; }
+.tok-bracket-0 { color: #e0a500; }
+.tok-bracket-1 { color: #7bc1ac; }
+.tok-bracket-2 { color: #d8b0de; }
+.tok-bracket-error { color: #fc857b; }
 .editor-footer { display: flex; justify-content: space-between; gap: 12px; padding: 11px 20px; border-top: 1px solid #253530; color: #83958b; font: 10px "SFMono-Regular", Consolas, monospace; }
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 17px 20px; border-top: 1px solid #33413d; background: #192523; }
 .button { padding: 13px 18px; border-radius: 6px; font-size: 12px; font-weight: 760; border: 1px solid transparent; transition: transform .12s, background .12s; }

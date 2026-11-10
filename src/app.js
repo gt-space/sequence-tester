@@ -1,4 +1,7 @@
+import { highlightPython } from "./highlight.js";
+
 const EXAMPLES = {
+  vespula: "# tank pre press sequence\nimport time\nprint('Pre Press Sequence has begun')\n\n# define pressure variables\nftpt_target = 416*psi # psia, target fuel tank pressure\notpt_target = 357*psi # psia, target lox tank pressure\nupRan = 2*psi # psi, upper range bound for bang bang algorithm\nlowRan = 3*psi # psi, lower range bound for bang bang algorithm\n\n# time variables\npress_time = 20 # s, sequence duration\nwait_timing = 5 # ms\n\n# confirm switch closed\nFSWV.close()\nOSWV.close()\nwait_for(wait_timing*ms)\n\n# initialize valve state variables\nFBB.close()\nFBBopen = False # hardcoded for consistency\nOBB.close()\nOBBopen = False # hardcoded due to feedback issues on sam-21\n\nstart_time = time.time() # s, current time\n\n# press tanks with bang bang algorithm\nwhile time.time() < start_time + press_time:\n\t# check pressures\n\tcurrFTPT = FTPT.read()\n\tcurrOTPT = OTPT.read()\n\t# bang bang algorithm\n\tif FBBopen and currFTPT > ftpt_target + upRan:\n\t\tFBB.close()\n\t\tFBBopen = False\n\telif (not FBBopen) and currFTPT < ftpt_target - lowRan:\n\t\tFBB.open()\n\t\tFBBopen = True\n\tif OBBopen and currOTPT > otpt_target + upRan:\n\t\tOBB.close()\n\t\tOBBopen = False\n\telif (not OBBopen) and currOTPT < otpt_target - lowRan:\n\t\tOBB.open()\n\t\tOBBopen = True\n\twait_for(wait_timing*ms)\n\nOBB.close()\nFBB.close()\n\nprint('Pre Press Sequence has ended')",
   tank: `press_valve.open()\nwait_until(lambda: tank_pt.read() >= 300 * psi, 5 * s)\npress_valve.close()\nprint("Tank press sequence finished")`,
   pulse: `press_valve.open()\nwait_for(500 * ms)\npress_valve.close()\nwait_for(250 * ms)\nvent_valve.open()\nwait_for(250 * ms)\nvent_valve.close()`,
   import: `press_valve.open()\ntime.sleep(1)\npress_valve.close()`,
@@ -8,6 +11,14 @@ const EXAMPLES = {
 const DEFAULT_MAPPING = {
   valves: ["press_valve", "vent_valve"],
   sensors: [{ name: "tank_pt", unit: "psi", samples: [{ at: 0, value: 0 }, { at: 1, value: 120 }, { at: 2, value: 220 }, { at: 3, value: 315 }] }]
+};
+
+const VESPULA_MAPPING = {
+  valves: ["FSWV", "OSWV", "FBB", "OBB"],
+  sensors: [
+    { name: "FTPT", unit: "psi", samples: [{ at: 0, value: 400 }, { at: 1, value: 420 }, { at: 5, value: 405 }, { at: 10, value: 421 }] },
+    { name: "OTPT", unit: "psi", samples: [{ at: 0, value: 330 }, { at: 1, value: 360 }, { at: 5, value: 340 }, { at: 10, value: 361 }] }
+  ]
 };
 
 const $ = id => document.getElementById(id);
@@ -209,6 +220,7 @@ function updateEditor() {
   const count = source.value.split("\n").length;
   $("gutter").textContent = Array.from({ length: count }, (_, i) => String(i + 1)).join("\n");
   $("editor-info").textContent = `${count} lines · ${source.value.length} characters`;
+  highlightPython(source.value, $("highlight"));
   localStorage.setItem("yjsp-sequence-source", source.value);
 }
 
@@ -216,7 +228,7 @@ source.value = localStorage.getItem("yjsp-sequence-source") ?? EXAMPLES.tank;
 mapping.value = localStorage.getItem("yjsp-sequence-mapping") ?? JSON.stringify(DEFAULT_MAPPING, null, 2);
 updateEditor();
 source.addEventListener("input", () => { updateEditor(); invalidateResults(); });
-source.addEventListener("scroll", () => { $("gutter").scrollTop = source.scrollTop; });
+source.addEventListener("scroll", () => { $("gutter").scrollTop = source.scrollTop; $("highlight").scrollTop = source.scrollTop; $("highlight").scrollLeft = source.scrollLeft; });
 source.addEventListener("keydown", event => {
   if (event.key === "Tab") {
     event.preventDefault();
@@ -235,6 +247,8 @@ $("validate").onclick = () => run("validate");
 $("simulate").onclick = () => run("simulate");
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
+  mapping.value = JSON.stringify(button.dataset.example === "vespula" ? VESPULA_MAPPING : DEFAULT_MAPPING, null, 2);
+  localStorage.setItem("yjsp-sequence-mapping", mapping.value);
   updateEditor();
   invalidateResults();
   source.focus();

@@ -7,7 +7,7 @@ A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna)
 1. Python syntax and indentation checks through Python's parser.
 2. Undefined-name checks, including missing `import time` and typos in script variables.
 3. Luna API and mapping checks for exported names, valve/sensor constructors, and their methods.
-4. Browser-only simulated execution, virtual time, mock sensors, valve commands, exceptions, and an event trace.
+4. Browser-only simulated execution with **continuous clock (5× default)** or **deterministic clock**, mock sensors, valve commands, exceptions, and an event trace.
 5. Valve-driven sensors with complete valve-state truth tables, linear rates, and optional bounds for feedback control loops.
 6. Synchronized valve-state and sensor plots, with up to four pinned time cursors and per-trace readouts.
 7. Click a valve transition, a sensor source-link, or a trace event to highlight the originating Python line.
@@ -20,7 +20,7 @@ A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna)
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000`. The deployed site serves [Pyodide](https://pyodide.org/) locally, while local development needs a copy of Pyodide under `src/pyodide/` (`npm install --no-save --prefix /tmp/sequence-pyodide pyodide@314.0.7` then copy the package). Python executes in a Web Worker. A stuck worker is terminated after five seconds of execution (initial loading is allowed more time).
+Open `http://localhost:8000`. The deployed site serves [Pyodide](https://pyodide.org/) locally, while local development needs a copy of Pyodide under `src/pyodide/` (`npm install --no-save --prefix /tmp/sequence-pyodide pyodide@314.0.7` then copy the package). Python executes in a Web Worker. The wall-clock watchdog accounts for the selected simulated-time limit and acceleration (with a 15-second cushion); deterministic mode has a 15-second watchdog for stuck loops. Initial loading is allowed more time.
 
 ## Test
 
@@ -80,19 +80,29 @@ For example, a pressure sensor affected by `CISO` and `CMV` can use a complete f
 }
 ```
 
-Each bit is the corresponding valve in the listed order: `0` means CLOSED, `1` means OPEN. The value is a signed rate in `psi/s`. On each virtual-time advance, the current valve-state combination selects the rate; the reading evolves continuously from its last value. Changing a valve switches rates without resetting the sensor. The generated sensor trace includes state-change breakpoints and limit crossings so the plotted line and pinned-cursor readouts follow simulated values. The **Valve-driven CTPT** and **Vespula prePress** examples demonstrate feedback behavior with illustrative rates, not measured tank performance.
+Each bit is the corresponding valve in the listed order: `0` means CLOSED, `1` means OPEN. The value is a signed rate in `psi/s`. The current valve-state combination selects the rate; the reading evolves continuously from its last value. Changing a valve switches rates without resetting the sensor. The generated sensor trace includes state-change breakpoints and limit crossings so the plotted line and pinned-cursor readouts follow simulated values. The **Valve-driven CTPT** and **Vespula prePress** examples demonstrate feedback behavior with illustrative rates, not measured tank performance.
+
+## Simulation clock
+
+The clock setting is in the tester's run controls; **nothing is added to `sequence.py`**. The exact same Python code can be pasted into Luna or tested here.
+
+- **Continuous** (default) advances simulated time with the actual elapsed wall clock, scaled by 5×. The speed selector also offers 1×, 10×, or 20×. At 5×, a 10-second Luna wait takes approximately 2 seconds to simulate. Sensor reads, valve transitions, `time.time()`, `time.monotonic()`, `time.perf_counter()`, `time.sleep()`, `wait_for()`, `wait_until()`, and `interval()` share this clock. A busy-polling loop such as `while CTPT.read() < 300 * psi: pass` now sees the pressure rise based on configured valve rates without an artificial wait inserted into the user's source.
+- **Deterministic** preserves the original instant, repeatable time advancement: simulated time moves only when the script calls an explicit wait, sleep, or interval. It is useful for quick regression tests of sequences that already contain waits. Tight polling loops that never call a time-advancing API will still stall in this mode.
+- **Limit** caps simulated duration (default 600 seconds, configurable from 1 to 3600). When a sensor condition cannot complete before the limit, the runtime reports an error, including the last sensor reading and its active valve-state truth-table rate when available. An additional main-thread watchdog terminates a worker that never returns, even if it calls no simulated API.
+
+The output shows simulated seconds, wall-clock seconds, target speed, measured effective speed, and wait overshoot. These are simulator timing diagnostics, not a measurement of Luna's real hardware scheduler or control-loop response time. Browser scheduling and Pyodide execution can introduce jitter, especially at high acceleration.
 
 ## Simulation output
 
 After **Run simulation**, the result contains two aligned plots: requested valve states and sensor readings (including valve-driven responses). Hovering either plot synchronizes the time cursor and shows every mapped trace's value; valve-driven readouts also show the active truth-table combination and its rate. Clicking an empty part of a plot pins a cursor; up to four can be compared side by side and removed individually. Clicking a valve transition or the event-log line link jumps to the source line that issued it. Sensor track links jump to their recorded `.read()` lines; clicking a line in the editor highlights associated valve transitions on the plot. The detailed event log is collapsible.
 
-Time profiles are **inputs** independent of commands. Valve-driven readings respond to *commanded* valve states using user-entered rates, not a physical fluid model or feedback from real actuators. A graph that looks plausible is not physical verification or validation of control performance. A feedback loop without any operation advancing virtual time can still stall.
+Time profiles are **inputs** independent of commands. Valve-driven readings respond to *commanded* valve states using user-entered rates, not a physical fluid model or feedback from real actuators. A graph that looks plausible is not physical verification or validation of control performance. A feedback loop without a readable sensor or time call may still stall until the wall-clock watchdog, even in continuous mode.
 
 ## Compatibility and limitations
 
 The supported sequence API is modeled after `common/src/sequence/{mod,func,device,unit}.rs` and the Python prelude in `flight2/src/sequence.rs` from Luna. All common exports, `OPEN`/`CLOSED`, and mapped names are available without explicit imports.
 
-- `wait_for`, `wait_until`, `interval`, and `time.sleep()` advance virtual time. `wait_until()` returns normally on timeout, matching Luna; a timeout trace event is shown.
+- `wait_for`, `wait_until`, `interval`, and `time.sleep()` advance time in both modes. Continuous mode also advances time between these calls. `wait_until()` returns normally on its own timeout, matching Luna, but the tester flags a warning and shows a timeout trace event so the operator sees that the condition never became true. The separate global simulated-time limit is a test error.
 - Actuation and abort functions record *requested commands* only. `set_abort_stage()` does not test real revision/acknowledgment logic.
 - Modules other than the selected set (`common`, `time`, and `math`) are not supported in simulation, even if valid in Luna. Syntax/name validation can still run on them.
 - No assertion is made about physical response, real sensor reliability, board synchronization, or failure-handling correctness.

@@ -26,7 +26,8 @@ self.onmessage = async ({ data }) => {
     pyodide.globals.set("__sequence_source", data.source);
     pyodide.globals.set("__sequence_mapping", data.mapping);
     pyodide.globals.set("__sequence_execute", data.mode === "simulate");
-    const result = pyodide.runPython("json.dumps(run_sequence(__sequence_source, __sequence_mapping, __sequence_execute))");
+    pyodide.globals.set("__sequence_options", JSON.stringify(data.options ?? {}));
+    const result = pyodide.runPython("json.dumps(run_sequence(__sequence_source, __sequence_mapping, __sequence_execute, json.loads(__sequence_options)))");
     self.postMessage({ type: "result", result: JSON.parse(result), id: data.id });
   } catch (error) {
     self.postMessage({ type: "failure", message: String(error), id: data.id });

@@ -6,6 +6,7 @@ import json
 import math
 import sys
 import symtable
+import time as host_time
 import traceback
 import types
 
@@ -230,8 +231,14 @@ class SimulationLimit(Exception):
 
 
 class Simulator:
-    def __init__(self, valves, sensors):
+    def __init__(self, valves, sensors, clock_mode="deterministic", speed=5, max_duration=600):
         self.time = 0.0
+        self.clock_mode = clock_mode
+        self.speed = speed
+        self.max_duration = max_duration
+        self.wall_start = host_time.perf_counter()
+        self.epoch_start = host_time.time()
+        self.wait_errors = []
         self.events = []
         self.initial_valves = dict(valves)
         self.valves = dict(valves)
@@ -241,9 +248,15 @@ class Simulator:
         self.dynamic_samples = {name: [{"at": 0.0, "value": value}]
                                 for name, value in self.dynamic_values.items()}
         self.sensor_read_lines = {}
+        self.last_sensor_read = None
+        self.runtime_diagnostics = []
         self.stage = ""
         self.condition = ""
         self.aborted = False
+
+    def start_clock(self):
+        self.wall_start = host_time.perf_counter()
+        self.epoch_start = host_time.time()
 
     @staticmethod
     def source_line():
@@ -255,30 +268,83 @@ class Simulator:
         return 0
 
     def event(self, kind, target, detail):
+        self.sync_clock()
         if len(self.events) < 300:
             self.events.append(dict(time=round(self.time, 4), kind=kind,
                                     target=target, detail=str(detail), line=self.source_line()))
 
-    def advance(self, seconds):
-        seconds = float(seconds)
-        if not math.isfinite(seconds) or seconds < 0:
-            raise ValueError("Wait duration must be finite and nonnegative")
-        if self.time + seconds > 3600:
-            raise SimulationLimit("Simulation exceeded one hour of virtual time")
+    def _advance_to(self, target):
+        if target > self.max_duration:
+            context = ""
+            if self.last_sensor_read:
+                name, value = self.last_sensor_read
+                sensor = self.sensors[name]
+                if sensor.get("mode") == "valve":
+                    key = "".join("1" if self.valves[valve] == "OPEN" else "0" for valve in sensor["valves"])
+                    states = ", ".join(f"{valve}={self.valves[valve]}" for valve in sensor["valves"])
+                    context = (f"; last {name}={value:g} {sensor['unit']} "
+                               f"({states}, rate {sensor['rates'][key]:g} {sensor['unit']}/s)")
+                else:
+                    context = f"; last {name}={value:g} {sensor['unit']}"
+            raise SimulationLimit(f"Simulation reached the {self.max_duration:g}s simulated-time limit; "
+                                  f"a loop or sensor condition may never complete{context}")
+        seconds = max(0, target - self.time)
         for name, sensor in self.sensors.items():
             if sensor.get("mode") != "valve":
                 continue
             key = "".join("1" if self.valves[valve] == "OPEN" else "0" for valve in sensor["valves"])
             rate = sensor["rates"][key]
             current = self.dynamic_values[name]
-            target = current + seconds * rate
+            next_value = current + seconds * rate
             bound = sensor["max"] if rate > 0 else sensor["min"]
-            if bound is not None and ((rate > 0 and target > bound) or (rate < 0 and target < bound)):
+            if bound is not None and ((rate > 0 and next_value > bound) or (rate < 0 and next_value < bound)):
                 crossing = self.time + (bound - current) / rate
                 self.record_sensor(name, crossing, bound)
-                target = bound
-            self.dynamic_values[name] = target
+                next_value = bound
+            self.dynamic_values[name] = next_value
         self.time += seconds
+
+    def sync_clock(self):
+        if self.clock_mode == "realtime":
+            self._advance_to(max(self.time, (host_time.perf_counter() - self.wall_start) * self.speed))
+
+    def advance(self, seconds):
+        seconds = float(seconds)
+        if not math.isfinite(seconds) or seconds < 0:
+            raise ValueError("Wait duration must be finite and nonnegative")
+        self.sync_clock()
+        if self.clock_mode == "deterministic":
+            self._advance_to(self.time + seconds)
+            return
+        starting = self.time
+        target = starting + seconds
+        if target > self.max_duration:
+            self._advance_to(target)
+        deadline = self.wall_start + target / self.speed
+        while True:
+            remaining = deadline - host_time.perf_counter()
+            if remaining <= 0:
+                break
+            host_time.sleep(remaining if remaining < .002 else remaining - .0005)
+        self.sync_clock()
+        if seconds > 0:
+            self.wait_errors.append(max(0, self.time - starting - seconds))
+
+    def elapsed_time(self):
+        self.sync_clock()
+        return self.time
+
+    def clock_time(self):
+        self.sync_clock()
+        return self.epoch_start + self.time if self.clock_mode == "realtime" else self.time
+
+    def timing_summary(self):
+        wall = max(0, host_time.perf_counter() - self.wall_start)
+        return {"mode": self.clock_mode, "requested_speed": self.speed if self.clock_mode == "realtime" else None,
+                "wall_seconds": round(wall, 4), "actual_speed": round(self.time / wall, 3) if wall and self.clock_mode == "realtime" else None,
+                "wait_count": len(self.wait_errors),
+                "max_wait_overshoot_ms": round(1000 * max(self.wait_errors, default=0), 3),
+                "simulated_limit_seconds": self.max_duration}
 
     def record_sensor(self, name, at=None, value=None):
         at = self.time if at is None else at
@@ -301,6 +367,7 @@ class Simulator:
         return result
 
     def read(self, name):
+        self.sync_clock()
         if name not in self.sensors:
             raise KeyError(f"Unknown sensor '{name}'")
         line = self.source_line()
@@ -310,6 +377,7 @@ class Simulator:
         sensor = self.sensors[name]
         if sensor.get("mode") == "valve":
             value = self.dynamic_values[name]
+            self.last_sensor_read = (name, value)
             return value if sensor["unit"] == "unknown" else Quantity(value, sensor["unit"])
         value = sensor["samples"][0]["value"]
         previous = sensor["samples"][0]
@@ -321,6 +389,7 @@ class Simulator:
                 break
             value = sample["value"]
             previous = sample
+        self.last_sensor_read = (name, value)
         return value if sensor["unit"] == "unknown" else Quantity(value, sensor["unit"])
 
     def make_module(self):
@@ -341,6 +410,7 @@ class Simulator:
                 return self.name
 
             def actuate(self, opening):
+                sim.sync_clock()
                 state = "OPEN" if opening else "CLOSED"
                 if sim.valves[self.name] != state:
                     for sensor_name, config in sim.sensors.items():
@@ -356,9 +426,11 @@ class Simulator:
                 self.actuate(False)
 
             def is_open(self):
+                sim.sync_clock()
                 return sim.valves[self.name] == "OPEN"
 
             def is_closed(self):
+                sim.sync_clock()
                 return sim.valves[self.name] == "CLOSED"
 
         class Sensor:
@@ -392,15 +464,22 @@ class Simulator:
                 raise TypeError("wait_until timeout must be a Duration")
             if poll_interval is not None and (not isinstance(poll_interval, Quantity) or poll_interval.kind != "s"):
                 raise TypeError("wait_until poll_interval must be a Duration")
-            limit = timeout.raw if isinstance(timeout, Quantity) else 3600 - sim.time
+            sim.sync_clock()
+            limit = timeout.raw if isinstance(timeout, Quantity) else sim.max_duration - sim.time
             poll = poll_interval.raw if isinstance(poll_interval, Quantity) else 0.01
             if poll <= 0:
                 raise ValueError("poll_interval must be positive")
-            deadline = min(sim.time + limit, 3600)
+            deadline = min(sim.time + limit, sim.max_duration)
             calls = 0
             while not condition():
+                sim.sync_clock()
                 if sim.time >= deadline:
+                    if sim.time >= sim.max_duration:
+                        sim._advance_to(sim.time + 0.001)
                     sim.event("timeout", "wait_until", "Condition not met; Luna returns without raising")
+                    sim.runtime_diagnostics.append(diagnostic(
+                        "runtime", "warning", "wait_until() timed out before its condition became true; "
+                        "Luna continues executing the sequence", sim.source_line()))
                     return
                 if calls > 100000:
                     raise SimulationLimit("Too many wait_until polls")
@@ -410,8 +489,10 @@ class Simulator:
         def interval(count, period):
             if not isinstance(period, Quantity) or period.kind != "s":
                 raise TypeError("interval expects a Duration")
+            sim.sync_clock()
             start = sim.time
             for i in range(count):
+                sim.sync_clock()
                 sim.advance(max(0, start + i * period.raw - sim.time))
                 yield i
 
@@ -473,7 +554,7 @@ class Simulator:
         return module
 
 
-def run_sequence(source, mapping, execute=False):
+def run_sequence(source, mapping, execute=False, options=None):
     valves, sensors, diagnostics = check_mapping(mapping)
     result = {"checks": {"syntax": "not_run", "names": "not_run", "api": "not_run", "runtime": "not_run"},
               "diagnostics": diagnostics, "events": [], "stdout": "", "virtual_time": 0, "valves": {},
@@ -489,13 +570,30 @@ def run_sequence(source, mapping, execute=False):
     if not execute or any(d["severity"] == "error" for d in result["diagnostics"]):
         return result
 
-    sim = Simulator(valves, sensors)
+    options = options or {}
+    try:
+        clock_mode = options.get("clock_mode", "deterministic")
+        speed = options.get("speed", 5)
+        max_duration = options.get("max_duration", 600)
+        if clock_mode not in ("deterministic", "realtime"):
+            raise ValueError("Clock mode must be realtime or deterministic")
+        if isinstance(speed, bool) or not isinstance(speed, (int, float)) or not math.isfinite(speed) or not 1 <= speed <= 20:
+            raise ValueError("Simulation speed must be between 1× and 20×")
+        if (isinstance(max_duration, bool) or not isinstance(max_duration, (int, float))
+                or not math.isfinite(max_duration) or not 1 <= max_duration <= 3600):
+            raise ValueError("Simulated-time limit must be between 1 and 3600 seconds")
+    except (AttributeError, ValueError, TypeError) as error:
+        result["checks"]["runtime"] = "fail"
+        result["diagnostics"].append(diagnostic("runtime", "error", f"Invalid simulation settings: {error}"))
+        return result
+
+    sim = Simulator(valves, sensors, clock_mode=clock_mode, speed=speed, max_duration=max_duration)
     common = sim.make_module()
     fake_time = types.ModuleType("time")
     fake_time.sleep = sim.advance
-    fake_time.time = lambda: sim.time
-    fake_time.monotonic = lambda: sim.time
-    fake_time.perf_counter = lambda: sim.time
+    fake_time.time = sim.clock_time
+    fake_time.monotonic = sim.elapsed_time
+    fake_time.perf_counter = sim.elapsed_time
     allowed = {"common": common, "time": fake_time, "math": math}
 
     def import_module(name, *args, **kwargs):
@@ -515,16 +613,21 @@ def run_sequence(source, mapping, execute=False):
         scope[name] = common.Sensor(name)
     output = io.StringIO()
     try:
+        code = compile(tree, "sequence.py", "exec")
+        sim.start_clock()
         with contextlib.redirect_stdout(output):
-            exec(compile(tree, "sequence.py", "exec"), scope, scope)
+            exec(code, scope, scope)
+        sim.sync_clock()
         result["checks"]["runtime"] = "pass"
     except BaseException as error:
         line = next((frame.lineno for frame in reversed(traceback.extract_tb(error.__traceback__)) if frame.filename == "sequence.py"), 0)
         result["checks"]["runtime"] = "fail"
         result["diagnostics"].append(diagnostic("runtime", "error", f"{type(error).__name__}: {error}", line))
     result["stdout"] = output.getvalue()[:10000]
+    result["diagnostics"].extend(sim.runtime_diagnostics)
     result["events"] = sim.events
     result["virtual_time"] = round(sim.time, 4)
+    result["timing"] = sim.timing_summary()
     result["valves"] = sim.valves
     result["simulation"] = {
         "initial_valves": sim.initial_valves,

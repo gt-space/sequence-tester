@@ -39,10 +39,30 @@ let ready = false;
 let currentId = 0;
 let pending = null;
 let executionTimeout;
+let elapsedTicker;
 let startupTimeout;
 let running = false;
 let startupPhase = "Loading Python runtime…";
 let activeSourceLine = 0;
+
+const clockMode = $("clock-mode");
+const clockSpeed = $("clock-speed");
+const timeLimit = $("time-limit");
+clockMode.value = ["realtime", "deterministic"].includes(localStorage.getItem("yjsp-clock-mode"))
+  ? localStorage.getItem("yjsp-clock-mode") : "realtime";
+clockSpeed.value = ["1", "5", "10", "20"].includes(localStorage.getItem("yjsp-clock-speed"))
+  ? localStorage.getItem("yjsp-clock-speed") : "5";
+timeLimit.value = localStorage.getItem("yjsp-time-limit") ?? "600";
+
+function updateClockSettings() {
+  $("speed-setting").hidden = clockMode.value !== "realtime";
+}
+
+function clearExecutionTimers() {
+  clearTimeout(executionTimeout);
+  clearInterval(elapsedTicker);
+  elapsedTicker = null;
+}
 
 function updateLineFocus() {
   const indicator = $("line-focus");
@@ -94,7 +114,7 @@ function setStatus(message, level = "normal") {
 function makeWorker() {
   if (worker) worker.terminate();
   clearTimeout(startupTimeout);
-  clearTimeout(executionTimeout);
+  clearExecutionTimers();
   const workerUrl = new URL("./worker.js", import.meta.url);
   workerUrl.search = new URL(import.meta.url).search;
   worker = new Worker(workerUrl, { type: "module" });
@@ -123,14 +143,15 @@ function makeWorker() {
       worker = null;
     } else if (data.type === "result") {
       if (data.id !== currentId) return;
-      clearTimeout(executionTimeout);
+      clearExecutionTimers();
       running = false;
       pending = null;
       render(data.result);
-      setStatus("Check complete", "success");
+      setStatus(data.result.checks?.runtime === "fail" ? "Simulation stopped · inspect diagnostics" : "Check complete",
+        data.result.checks?.runtime === "fail" ? "error" : "success");
     } else if (data.type === "failure") {
       if (data.id !== currentId) return;
-      clearTimeout(executionTimeout);
+      clearExecutionTimers();
       running = false;
       pending = null;
       setStatus(`Execution failed: ${data.message}`, "error");
@@ -138,7 +159,7 @@ function makeWorker() {
   };
   worker.onerror = event => {
     clearTimeout(startupTimeout);
-    clearTimeout(executionTimeout);
+    clearExecutionTimers();
     setStatus(`Runtime error: ${event.message}`, "error");
     worker.terminate();
     worker = null;
@@ -150,12 +171,25 @@ function dispatch(request) {
   running = true;
   setStatus(request.mode === "simulate" ? "Simulating…" : "Validating…");
   worker.postMessage(request);
+  const realtime = request.mode === "simulate" && request.options.clock_mode === "realtime";
+  const wallLimit = realtime ? (request.options.max_duration / request.options.speed) * 1000 + 15000 : 15000;
+  const startWall = performance.now();
+  if (request.mode === "simulate") {
+    elapsedTicker = setInterval(() => {
+      const elapsed = (performance.now() - startWall) / 1000;
+      const time = realtime ? elapsed * request.options.speed : 0;
+      setStatus(realtime
+        ? `Simulating ${request.options.speed}× · ~${time.toFixed(1)}s simulated / ${elapsed.toFixed(1)}s elapsed`
+        : `Deterministic simulation · ${elapsed.toFixed(1)}s elapsed`);
+    }, 200);
+  }
   executionTimeout = setTimeout(() => {
-    render({ checks: { syntax: "pass", names: "not_run", api: "not_run", runtime: "fail" }, diagnostics: [{ stage: "runtime", severity: "error", message: "Execution exceeded the 5-second wall-clock limit", line: 0 }], events: [], virtual_time: 0, stdout: "" });
+    const seconds = wallLimit / 1000;
+    render({ checks: { syntax: "pass", names: "not_run", api: "not_run", runtime: "fail" }, diagnostics: [{ stage: "runtime", severity: "error", message: `Execution exceeded the ${seconds.toFixed(1)}s wall-clock watchdog limit; check for an infinite loop or stalled condition`, line: 0 }], events: [], virtual_time: null, stdout: "" });
     running = false;
     makeWorker();
-    setStatus("Execution stopped after 5 seconds. Restarting Python runtime…", "error");
-  }, 5000);
+    setStatus(`Execution stopped after ${seconds.toFixed(1)}s. Restarting Python runtime…`, "error");
+  }, wallLimit);
 }
 
 function run(mode) {
@@ -163,7 +197,14 @@ function run(mode) {
     setStatus("Sequence or configuration too large", "error");
     return;
   }
-  const request = { id: ++currentId, mode, source: source.value, mapping: mapping.value };
+  const maxDuration = Number(timeLimit.value);
+  if (mode === "simulate" && (!Number.isFinite(maxDuration) || maxDuration < 1 || maxDuration > 3600)) {
+    setStatus("Simulated-time limit must be between 1 and 3600 seconds", "error");
+    return;
+  }
+  const options = { clock_mode: clockMode.value, speed: Number(clockSpeed.value),
+    max_duration: mode === "simulate" ? maxDuration : 600 };
+  const request = { id: ++currentId, mode, source: source.value, mapping: mapping.value, options };
   localStorage.setItem("yjsp-sequence-source", source.value);
   localStorage.setItem("yjsp-sequence-mapping", mapping.value);
   if (!worker) makeWorker();
@@ -194,6 +235,8 @@ function invalidateResults() {
   $("diagnostics").className = "empty-state";
   $("diagnostics").textContent = "Not checked";
   $("virtual-time").textContent = "—";
+  $("timing-details").hidden = true;
+  $("timing-details").textContent = "";
   timeline.clear();
   $("trace-placeholder").hidden = false;
   $("event-details").hidden = true;
@@ -243,6 +286,20 @@ function render(result) {
     list.append(row);
   }
   $("virtual-time").textContent = typeof result.virtual_time === "number" ? `${result.virtual_time.toFixed(3)} s` : "—";
+  const timing = result.timing;
+  const timingDetails = $("timing-details");
+  timingDetails.hidden = !timing;
+  timingDetails.replaceChildren();
+  if (timing) {
+    const pieces = [timing.mode === "realtime" ? `Continuous · ${timing.requested_speed}× target` : "Deterministic · instant advance",
+      `${timing.wall_seconds.toFixed(3)}s wall time`,
+      `${timing.simulated_limit_seconds}s simulation limit`];
+    if (timing.mode === "realtime") {
+      pieces.splice(2, 0, `${timing.actual_speed?.toFixed(2) ?? "—"}× effective`,
+        `${timing.wait_count} waits · max ${(timing.max_wait_overshoot_ms / timing.requested_speed).toFixed(2)}ms wall overshoot`);
+    }
+    timingDetails.textContent = pieces.join("   ·   ");
+  }
   if (result.simulation) timeline.load(result);
   else timeline.clear();
   $("trace-placeholder").hidden = Boolean(result.simulation);
@@ -353,6 +410,16 @@ source.addEventListener("keydown", event => {
 });
 $("validate").onclick = () => run("validate");
 $("simulate").onclick = () => run("simulate");
+for (const control of [clockMode, clockSpeed, timeLimit]) {
+  control.addEventListener("change", () => {
+    localStorage.setItem("yjsp-clock-mode", clockMode.value);
+    localStorage.setItem("yjsp-clock-speed", clockSpeed.value);
+    localStorage.setItem("yjsp-time-limit", timeLimit.value);
+    updateClockSettings();
+    invalidateResults();
+  });
+}
+updateClockSettings();
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
   environment.load(button.dataset.example === "vespula" ? VESPULA_MAPPING :

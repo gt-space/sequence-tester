@@ -192,6 +192,12 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .button.primary span { margin-right: 7px; }
 .button.secondary { color: #e1eae4; background: #2b3a35; border-color: #46564d; }
 .button.secondary:hover { background: #35483f; }
+.clock-settings { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 11px; margin-left: 5px; }
+.clock-settings label { display: inline-flex; align-items: center; gap: 5px; color: #a9b8ae; font-size: 11px; white-space: nowrap; }
+.clock-settings select, .clock-settings input { color: #e1eae4; background: #24332d; border: 1px solid #46564d; border-radius: 5px; padding: 7px 5px; font: inherit; }
+.clock-settings select:focus-visible, .clock-settings input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.clock-settings input { width: 61px; }
+.clock-settings [hidden] { display: none; }
 #engine-status { margin-left: auto; max-width: 240px; text-align: right; color: #9bad9f; font-size: 11px; line-height: 1.5; }
 #engine-status[data-level=error] { color: #ffad9f; }
 #engine-status[data-level=success] { color: #98ddab; }
@@ -235,6 +241,8 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .trace-header h2 { margin: 5px 0 0; font-size: 19px; letter-spacing: -.03em; }
 .trace-header > div:last-child { display: flex; flex-direction: column; align-items: end; gap: 4px; }
 #virtual-time { font: 760 22px Consolas, monospace; color: var(--gold); }
+.timing-details { padding: 10px 26px; background: #202f29; border-bottom: 1px solid #33413d; color: #abc3b2; font: 11px/1.65 Consolas, monospace; }
+.timing-details[hidden] { display: none; }
 .trace-header small { color: #8fa398; font-size: 9px; font-weight: 760; letter-spacing: .12em; }
 .trace-empty { padding: 40px 26px; color: #82948a; font-size: 12px; }
 .visual-output[hidden], .trace-details[hidden], .trace-empty[hidden] { display: none; }

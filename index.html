@@ -26,7 +26,11 @@
         <section class="editor-panel" aria-label="Sequence and test environment editors">
           <div class="panel-header">
             <div class="editor-tabs" role="tablist" aria-label="Editor tabs"><button id="sequence-tab" class="editor-tab active" role="tab" aria-controls="sequence-pane" aria-selected="true" type="button"><span class="tab-dot"></span>sequence.py</button><button id="environment-tab" class="editor-tab" role="tab" aria-controls="environment-pane" aria-selected="false" type="button">Test Environment</button></div>
-            <div class="header-actions"><button id="split-toggle" class="split-button" aria-pressed="false" type="button">▥ Split view</button><div id="source-actions" class="source-actions"><button id="upload" class="link-button" type="button">Open .py</button><button id="download" class="link-button" type="button">Download ↓</button></div></div>
+            <div class="header-actions">
+              <button id="split-toggle" class="split-button" aria-pressed="false" type="button">▥ Split view</button>
+              <div id="source-actions" class="source-actions"><button id="upload" class="link-button" type="button">Open .py</button><button id="download" class="link-button" type="button">Download .py ↓</button></div>
+              <div id="environment-actions" class="source-actions" hidden><button id="environment-upload" class="link-button" type="button">Import env ↑</button><button id="environment-download" class="link-button" type="button">Export env ↓</button></div>
+            </div>
           </div>
           <div id="editor-body" class="editor-body" data-view="sequence">
             <div id="sequence-pane" class="code-wrap" role="tabpanel" aria-labelledby="sequence-tab"><pre id="gutter" aria-hidden="true">1</pre><div class="code-input"><div id="line-focus" aria-hidden="true" hidden></div><pre id="highlight" aria-hidden="true"></pre><textarea id="source" aria-label="Python sequence source" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div></div>
@@ -92,5 +96,6 @@
     </main>
   </div>
   <input type="file" id="file-input" accept=".py,text/x-python,text/plain" hidden />
+  <input type="file" id="environment-file-input" accept=".json,application/json" hidden />
 </body>
 </html>

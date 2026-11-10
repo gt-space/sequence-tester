@@ -1,5 +1,5 @@
 import { highlightPython } from "./highlight.js";
-import { createEnvironmentEditor } from "./environment.js";
+import { createEnvironmentEditor, parseEnvironmentFile, serializeEnvironmentFile } from "./environment.js";
 import { createTimelineView } from "./timeline.js";
 
 const EXAMPLES = {
@@ -420,6 +420,7 @@ function updateLayout() {
   $("split-toggle").setAttribute("aria-pressed", String(splitView));
   $("split-toggle").textContent = splitView ? "▣ Single view" : "▥ Split view";
   $("source-actions").hidden = !splitView && currentTab === "environment";
+  $("environment-actions").hidden = !splitView && currentTab === "sequence";
   $("editor-info").hidden = !splitView && currentTab === "environment";
   $("environment-info").hidden = splitView || currentTab !== "environment";
 }
@@ -482,12 +483,34 @@ $("file-input").onchange = async event => {
   updateEditor();
   invalidateResults();
 };
-$("download").onclick = () => {
-  const url = URL.createObjectURL(new Blob([source.value], { type: "text/x-python" }));
+function downloadFile(contents, filename, mimeType) {
+  const url = URL.createObjectURL(new Blob([contents], { type: mimeType }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = "sequence.py";
+  link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$("download").onclick = () => downloadFile(source.value, "sequence.py", "text/x-python");
+$("environment-download").onclick = () => {
+  downloadFile(serializeEnvironmentFile(JSON.parse(mapping.value)), "test-environment.json", "application/json");
+  setStatus("Test environment exported as JSON", "success");
+};
+$("environment-upload").onclick = () => $("environment-file-input").click();
+$("environment-file-input").onchange = async event => {
+  const file = event.target.files?.[0];
+  event.target.value = ""; // Selecting the same file again must still trigger import.
+  if (!file) return;
+  if (file.size > 200000) {
+    setStatus("Environment file too large (200 KB maximum)", "error");
+    return;
+  }
+  try {
+    const imported = parseEnvironmentFile(await file.text());
+    environment.load(imported);
+    setStatus(`Loaded ${file.name} · revalidate to check the environment`, "success");
+  } catch (error) {
+    setStatus(`Environment not imported: ${error.message}`, "error");
+  }
 };
 makeWorker();

@@ -70,8 +70,9 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .editor-tab:hover { color: var(--gold); }
 .editor-tab.active { color: #f0f5f0; background: #0e1717; border-bottom-color: var(--gold); }
 .tab-dot { display: inline-block; flex: 0 0 8px; width: 8px; height: 8px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 14px #e0a50055; }
-.header-actions { gap: 18px; }
+.header-actions { gap: 18px; flex-wrap: wrap; }
 .source-actions { gap: 17px; }
+#environment-actions { border-left: 1px solid #405047; padding-left: 17px; }
 .split-button { border: 1px solid #405047; border-radius: 5px; background: #25342f; color: #d6e2da; padding: 8px 10px; font-size: 11px; white-space: nowrap; }
 .split-button:hover, .split-button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
 .link-button { border: 0; padding: 5px 0; background: none; color: #b1c0b8; font-size: 11px; }
@@ -366,6 +367,7 @@ footer strong { color: #efc261; }
   .editor-tabs { flex: 1 1 100%; }
   .editor-tab { padding: 17px 14px; }
   .header-actions { margin-left: 14px; gap: 15px; }
+  #environment-actions { padding-left: 0; border-left: 0; }
   .actions { padding: 15px; }
   .flight-progress { gap: 15px; padding: 16px 15px; }
   .flight-dial { flex-basis: 77px; width: 77px; height: 77px; }

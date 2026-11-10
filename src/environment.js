@@ -118,6 +118,59 @@ export function normalizeEnvironment(raw, fallback) {
   };
 }
 
+// Reject malformed imports instead of silently replacing the current editor with defaults.
+export function parseEnvironmentFile(raw) {
+  let data;
+  try {
+    data = JSON.parse(raw.replace(/^\uFEFF/, ""));
+  } catch {
+    throw new Error("Invalid JSON. Choose a test environment .json file.");
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data) ||
+      !Array.isArray(data.valves) || !Array.isArray(data.sensors)) {
+    throw new Error('Environment JSON must contain "valves" and "sensors" arrays.');
+  }
+  if (data.valves.length > 100 || data.sensors.length > 100) {
+    throw new Error("Environment has too many valves or sensors (100 maximum each).");
+  }
+  for (const [index, valve] of data.valves.entries()) {
+    if (typeof valve === "string") continue; // Legacy exported configurations.
+    if (!valve || typeof valve !== "object" || Array.isArray(valve) ||
+        typeof valve.name !== "string" ||
+        (valve.initial !== undefined && !["OPEN", "CLOSED"].includes(valve.initial))) {
+      throw new Error(`Valve ${index + 1} must have a name and an OPEN/CLOSED initial state.`);
+    }
+  }
+  for (const [index, sensor] of data.sensors.entries()) {
+    if (!sensor || typeof sensor !== "object" || Array.isArray(sensor) || typeof sensor.name !== "string") {
+      throw new Error(`Sensor ${index + 1} must be an object with a name.`);
+    }
+    if (sensor.valves !== undefined &&
+        (!Array.isArray(sensor.valves) || sensor.valves.length > 4 ||
+          sensor.valves.some(name => typeof name !== "string"))) {
+      throw new Error(`Sensor ${index + 1} must reference at most four valve names.`);
+    }
+    if (sensor.samples !== undefined &&
+        (!Array.isArray(sensor.samples) || sensor.samples.length > 1000 ||
+          sensor.samples.some(sample => !sample || typeof sample !== "object" || Array.isArray(sample)))) {
+      throw new Error(`Sensor ${index + 1} has an invalid time profile.`);
+    }
+    if (sensor.rates !== undefined &&
+        (!sensor.rates || typeof sensor.rates !== "object" || Array.isArray(sensor.rates))) {
+      throw new Error(`Sensor ${index + 1} has an invalid valve truth table.`);
+    }
+  }
+  const normalized = normalizeEnvironment(data, data);
+  if (JSON.stringify(normalized).length > 100000) {
+    throw new Error("Environment is too large (100 KB maximum configuration).");
+  }
+  return normalized;
+}
+
+export function serializeEnvironmentFile(environment) {
+  return `${JSON.stringify(environment, null, 2)}\n`;
+}
+
 export function createEnvironmentEditor({ mapping, valveList, sensorList, initial, fallback, onChange }) {
   let data = normalizeEnvironment(initial, fallback);
   let expandedSensors = new WeakSet();

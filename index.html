@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Validate and simulate YJSP Luna Python sequences in your browser." />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <title>YJSP · Sequence Tester</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark">Y</span><span>YJSP <span class="brand-light">/ ENGINE SOFTWARE</span></span></div>
+      <div class="header-right"><span class="dot"></span><span>No login · Runs in your browser</span><a href="https://github.com/gt-space/sequence-tester" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div><div class="eyebrow">SEQUENCE DEVELOPMENT / PUBLIC BETA</div><h1>Test before the stand.</h1><p>Check Luna Python sequences for syntax, missing names, API mistakes, and runtime errors—without connecting hardware.</p></div>
+        <div class="build-note"><span>01–04</span><small>VALIDATION LAYERS LIVE</small><div>Behavioral assertions and fault injection are next.</div></div>
+      </section>
+
+      <div class="workspace">
+        <section class="editor-panel" aria-label="Python sequence editor">
+          <div class="panel-header"><div><span class="tab-dot"></span><strong>sequence.py</strong><span class="muted">Python · Luna environment</span></div><div class="header-actions"><button id="upload" class="link-button" type="button">Open .py</button><button id="download" class="link-button" type="button">Download</button></div></div>
+          <div class="code-wrap"><pre id="gutter" aria-hidden="true">1</pre><textarea id="source" aria-label="Python sequence source" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div>
+          <div class="editor-footer"><span id="editor-info">0 lines</span><span>Ctrl / Cmd + Enter to simulate</span></div>
+          <div class="actions"><button id="validate" class="button secondary" type="button">Validate code</button><button id="simulate" class="button primary" type="button"><span>▶</span> Run simulation</button><span id="engine-status" role="status">Loading Python runtime…</span></div>
+        </section>
+
+        <aside class="side-panel">
+          <div class="side-section"><div class="section-heading"><h2>Validation</h2><span class="mini-badge">LUNA API SNAPSHOT</span></div><div class="check" data-check="syntax"><div><span class="check-icon">—</span><span>Python syntax</span></div><span class="check-status">Not run</span></div><div class="check" data-check="names"><div><span class="check-icon">—</span><span>Names & imports</span></div><span class="check-status">Not run</span></div><div class="check" data-check="api"><div><span class="check-icon">—</span><span>Luna API & mappings</span></div><span class="check-status">Not run</span></div><div class="check" data-check="runtime"><div><span class="check-icon">—</span><span>Simulated runtime</span></div><span class="check-status">Not run</span></div></div>
+          <div class="side-section diagnostics"><div class="section-heading"><h2>Diagnostics</h2><span id="issue-count" class="counter">0</span></div><div id="diagnostics" class="empty-state">Run validation to see specific errors and warnings here.</div></div>
+          <div class="side-section"><div class="section-heading"><h2>Examples</h2></div><div class="examples"><button class="example" data-example="tank" type="button">Tank press <span>↗</span></button><button class="example" data-example="pulse" type="button">Valve pulse <span>↗</span></button><button class="example" data-example="import" type="button">Missing import <span>↗</span></button><button class="example" data-example="api" type="button">API mistake <span>↗</span></button></div></div>
+        </aside>
+      </div>
+
+      <section class="config-panel"><details id="configuration"><summary><div><span class="settings-icon">⌘</span><strong>Simulation mapping & sensor inputs</strong><span>Editable demo configuration — not validated flight mappings</span></div><span class="caret">⌄</span></summary><div class="config-body"><p>Luna injects valve and sensor names from the active hardware mappings. Enter matching identifiers here before treating an API check as meaningful. Sensor samples change instantaneously at the specified virtual time.</p><textarea id="mapping" aria-label="Valve and sensor mapping JSON" spellcheck="false"></textarea><div class="config-help">Configuration changes are saved in this browser only. No source code is uploaded.</div></div></details></section>
+
+      <section class="trace-panel"><div class="trace-header"><div><div class="eyebrow">SIMULATION OUTPUT</div><h2>Execution trace</h2></div><div><span id="virtual-time">—</span><small>VIRTUAL TIME</small></div></div><div id="trace" class="trace-empty">Run a simulation to see valve commands, abort requests, and timing events.</div><div id="stdout-box" class="stdout-box" hidden><h3>Printed output</h3><pre id="stdout"></pre></div></section>
+
+      <footer><p><strong>Simulation ≠ hardware verification.</strong> The browser uses mock interfaces and configured sensor inputs; it cannot certify correct engine behavior, SAM communication, abort safety, or real-world timing. Always perform approved hardware-based testing before operational use.</p><div><span>YJSP / SEQUENCE TESTER</span><span>Behavior checks + fault injection <b>COMING LATER</b></span></div></footer>
+    </main>
+  </div>
+  <input type="file" id="file-input" accept=".py,text/x-python,text/plain" hidden />
+</body>
+</html>

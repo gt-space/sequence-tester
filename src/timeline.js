@@ -49,6 +49,12 @@ export function valveStateAt(initial, events, name, time) {
   return state;
 }
 
+export function sensorRateAt(sensor, initial, events, time) {
+  if (sensor.mode !== "valve") return null;
+  const key = sensor.valves.map(name => valveStateAt(initial, events, name, time) === "OPEN" ? "1" : "0").join("");
+  return { key, rate: sensor.rates[key] };
+}
+
 export function sampleScale(sensor) {
   const values = (sensor.samples || []).map(sample => Number(sample.value));
   if (!values.length) return { min: 0, max: 1 };
@@ -198,7 +204,7 @@ export function createTimelineView({ container, onJumpToSource }) {
     const entries = Object.entries(payload.sensors);
     const row = 80;
     const height = Math.max(100, 55 + entries.length * row);
-    const chart = makeChart("Configured sensor readings over virtual time; click to pin a cursor", height);
+    const chart = makeChart("Sensor readings over virtual time, including valve-driven responses; click to pin a cursor", height);
     if (!entries.length) {
       chart.append(svg("text", { x: LEFT, y: 60, class: "timeline-empty-label" }, "No sensors configured"));
       return chart;
@@ -317,6 +323,19 @@ export function createTimelineView({ container, onJumpToSource }) {
         row.append(el("td", "", `${value === null ? "—" : nice(value)} ${sensor.unit === "unknown" ? "" : sensor.unit}`.trim()));
       }
       body.append(row);
+      if (sensor.mode === "valve") {
+        const ruleRow = el("tr");
+        ruleRow.append(el("th", "", `${name} rate`));
+        for (const cursor of all) {
+          const { key, rate } = sensorRateAt(sensor, payload.initial_valves, payload.events, cursor.time);
+          const states = sensor.valves.map((valve, i) => `${valve} ${key[i] === "1" ? "OPEN" : "CLOSED"}`).join(" · ");
+          const cell = el("td", "timeline-rate", `${rate > 0 ? "+" : ""}${nice(rate)} ${sensor.unit}/s`);
+          cell.title = states;
+          cell.append(el("small", "", states));
+          ruleRow.append(cell);
+        }
+        body.append(ruleRow);
+      }
     }
     table.append(body);
     readout.append(table);
@@ -338,7 +357,7 @@ export function createTimelineView({ container, onJumpToSource }) {
     container.append(valveSection);
     const sensorSection = el("section", "timeline-section sensor-timeline");
     const stitle = el("div", "timeline-section-heading");
-    stitle.append(el("h3", "", "Sensor inputs"), el("span", "", "CONFIGURED PROFILES"));
+    stitle.append(el("h3", "", "Sensor readings"), el("span", "", "TIME PROFILES / VALVE-DRIVEN"));
     sensorSection.append(stitle, sensorChart());
     container.append(sensorSection);
     const controls = el("div", "timeline-cursor-controls");

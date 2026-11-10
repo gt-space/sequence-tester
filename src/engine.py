@@ -68,6 +68,35 @@ def check_mapping(raw):
                 raise ValueError(f"Duplicate or reserved sensor name: {name}")
             if unit not in UNITS:
                 raise ValueError(f"Unsupported unit for {name}: {unit}")
+            if sensor.get("mode", "time") == "valve":
+                influences = sensor.get("valves", [])
+                if (not isinstance(influences, list) or not 1 <= len(influences) <= 4
+                        or any(not isinstance(v, str) or v not in valve_names for v in influences)
+                        or len(set(influences)) != len(influences)):
+                    raise ValueError(f"{name} must select 1–4 distinct configured valves")
+                initial = sensor.get("initial")
+                if isinstance(initial, bool) or not isinstance(initial, (int, float)) or not math.isfinite(initial):
+                    raise ValueError(f"{name} requires a finite initial value")
+                rates = sensor.get("rates")
+                combinations = [format(i, f"0{len(influences)}b") for i in range(2 ** len(influences))]
+                if not isinstance(rates, dict) or set(rates) != set(combinations):
+                    raise ValueError(f"{name} requires every valve-state row ({len(combinations)} total) to be configured")
+                for combination, rate in rates.items():
+                    if isinstance(rate, bool) or not isinstance(rate, (int, float)) or not math.isfinite(rate):
+                        raise ValueError(f"{name} row {combination.replace('0', 'C').replace('1', 'O')} needs a finite rate in {unit}/s")
+                minimum, maximum = sensor.get("min"), sensor.get("max")
+                for bound, value in (("minimum", minimum), ("maximum", maximum)):
+                    if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)):
+                        raise ValueError(f"{name} {bound} must be a finite number or blank")
+                if minimum is not None and maximum is not None and minimum > maximum:
+                    raise ValueError(f"{name} minimum cannot exceed maximum")
+                if minimum is not None and initial < minimum or maximum is not None and initial > maximum:
+                    raise ValueError(f"{name} initial value is outside the configured limits")
+                sensor_data[name] = dict(mode="valve", unit=unit, valves=influences, rates=rates,
+                                         initial=initial, min=minimum, max=maximum)
+                continue
+            if sensor.get("mode", "time") != "time":
+                raise ValueError(f"Unsupported sensor mode for {name}")
             interpolation = sensor.get("interpolation", "step")
             if interpolation not in {"step", "linear"}:
                 raise ValueError(f"Unsupported profile for {name}: {interpolation}")
@@ -207,6 +236,10 @@ class Simulator:
         self.initial_valves = dict(valves)
         self.valves = dict(valves)
         self.sensors = sensors
+        self.dynamic_values = {name: sensor["initial"] for name, sensor in sensors.items()
+                               if sensor.get("mode") == "valve"}
+        self.dynamic_samples = {name: [{"at": 0.0, "value": value}]
+                                for name, value in self.dynamic_values.items()}
         self.sensor_read_lines = {}
         self.stage = ""
         self.condition = ""
@@ -232,7 +265,40 @@ class Simulator:
             raise ValueError("Wait duration must be finite and nonnegative")
         if self.time + seconds > 3600:
             raise SimulationLimit("Simulation exceeded one hour of virtual time")
+        for name, sensor in self.sensors.items():
+            if sensor.get("mode") != "valve":
+                continue
+            key = "".join("1" if self.valves[valve] == "OPEN" else "0" for valve in sensor["valves"])
+            rate = sensor["rates"][key]
+            current = self.dynamic_values[name]
+            target = current + seconds * rate
+            bound = sensor["max"] if rate > 0 else sensor["min"]
+            if bound is not None and ((rate > 0 and target > bound) or (rate < 0 and target < bound)):
+                crossing = self.time + (bound - current) / rate
+                self.record_sensor(name, crossing, bound)
+                target = bound
+            self.dynamic_values[name] = target
         self.time += seconds
+
+    def record_sensor(self, name, at=None, value=None):
+        at = self.time if at is None else at
+        value = self.dynamic_values[name] if value is None else value
+        samples = self.dynamic_samples[name]
+        if at > samples[-1]["at"] + 1e-10:
+            samples.append({"at": round(at, 6), "value": value})
+        else:
+            samples[-1]["value"] = value
+
+    def sensor_traces(self):
+        result = {}
+        for name, sensor in self.sensors.items():
+            if sensor.get("mode") != "valve":
+                result[name] = sensor
+                continue
+            self.record_sensor(name)
+            result[name] = dict(mode="valve", unit=sensor["unit"], interpolation="linear",
+                                samples=self.dynamic_samples[name], valves=sensor["valves"], rates=sensor["rates"])
+        return result
 
     def read(self, name):
         if name not in self.sensors:
@@ -242,6 +308,9 @@ class Simulator:
             lines = self.sensor_read_lines.setdefault(name, set())
             lines.add(line)
         sensor = self.sensors[name]
+        if sensor.get("mode") == "valve":
+            value = self.dynamic_values[name]
+            return value if sensor["unit"] == "unknown" else Quantity(value, sensor["unit"])
         value = sensor["samples"][0]["value"]
         previous = sensor["samples"][0]
         for sample in sensor["samples"][1:]:
@@ -273,6 +342,10 @@ class Simulator:
 
             def actuate(self, opening):
                 state = "OPEN" if opening else "CLOSED"
+                if sim.valves[self.name] != state:
+                    for sensor_name, config in sim.sensors.items():
+                        if config.get("mode") == "valve" and self.name in config["valves"]:
+                            sim.record_sensor(sensor_name)
                 sim.valves[self.name] = state
                 sim.event("valve", self.name, state)
 
@@ -455,7 +528,7 @@ def run_sequence(source, mapping, execute=False):
     result["valves"] = sim.valves
     result["simulation"] = {
         "initial_valves": sim.initial_valves,
-        "sensors": sim.sensors,
+        "sensors": sim.sensor_traces(),
         "sensor_read_lines": {name: sorted(lines) for name, lines in sim.sensor_read_lines.items()},
     }
     return result

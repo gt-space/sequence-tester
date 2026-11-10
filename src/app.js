@@ -6,6 +6,7 @@ const EXAMPLES = {
   vespula: "# tank pre press sequence\nimport time\nprint('Pre Press Sequence has begun')\n\n# define pressure variables\nftpt_target = 416*psi # psia, target fuel tank pressure\notpt_target = 357*psi # psia, target lox tank pressure\nupRan = 2*psi # psi, upper range bound for bang bang algorithm\nlowRan = 3*psi # psi, lower range bound for bang bang algorithm\n\n# time variables\npress_time = 20 # s, sequence duration\nwait_timing = 5 # ms\n\n# confirm switch closed\nFSWV.close()\nOSWV.close()\nwait_for(wait_timing*ms)\n\n# initialize valve state variables\nFBB.close()\nFBBopen = False # hardcoded for consistency\nOBB.close()\nOBBopen = False # hardcoded due to feedback issues on sam-21\n\nstart_time = time.time() # s, current time\n\n# press tanks with bang bang algorithm\nwhile time.time() < start_time + press_time:\n\t# check pressures\n\tcurrFTPT = FTPT.read()\n\tcurrOTPT = OTPT.read()\n\t# bang bang algorithm\n\tif FBBopen and currFTPT > ftpt_target + upRan:\n\t\tFBB.close()\n\t\tFBBopen = False\n\telif (not FBBopen) and currFTPT < ftpt_target - lowRan:\n\t\tFBB.open()\n\t\tFBBopen = True\n\tif OBBopen and currOTPT > otpt_target + upRan:\n\t\tOBB.close()\n\t\tOBBopen = False\n\telif (not OBBopen) and currOTPT < otpt_target - lowRan:\n\t\tOBB.open()\n\t\tOBBopen = True\n\twait_for(wait_timing*ms)\n\nOBB.close()\nFBB.close()\n\nprint('Pre Press Sequence has ended')",
   tank: `press_valve.open()\nwait_until(lambda: tank_pt.read() >= 300 * psi, 5 * s)\npress_valve.close()\nprint("Tank press sequence finished")`,
   pulse: `press_valve.open()\nwait_for(500 * ms)\npress_valve.close()\nwait_for(250 * ms)\nvent_valve.open()\nwait_for(250 * ms)\nvent_valve.close()`,
+  feedback: `# Idealized pressure feedback demo (not a physical tank model)\nCISO.open()\nwait_until(lambda: CTPT.read() >= 340*psi, 5*s)\nCISO.close()\nCMV.open()\nwait_until(lambda: CTPT.read() <= 250*psi, 5*s)\nCMV.close()\nprint("Pressure-control sequence complete")`,
   import: `press_valve.open()\ntime.sleep(1)\npress_valve.close()`,
   api: `tank_pt.open()\npress_valve.open()\nwait_for(500 * ms)\npress_valve.close()`
 };
@@ -18,9 +19,15 @@ const DEFAULT_MAPPING = {
 const VESPULA_MAPPING = {
   valves: ["FSWV", "OSWV", "FBB", "OBB"],
   sensors: [
-    { name: "FTPT", unit: "psi", samples: [{ at: 0, value: 400 }, { at: 1, value: 420 }, { at: 5, value: 405 }, { at: 10, value: 421 }] },
-    { name: "OTPT", unit: "psi", samples: [{ at: 0, value: 330 }, { at: 1, value: 360 }, { at: 5, value: 340 }, { at: 10, value: 361 }] }
+    { name: "FTPT", unit: "psi", mode: "valve", initial: 400, valves: ["FBB"], rates: { "0": -2, "1": 30 }, min: 0, max: 500 },
+    { name: "OTPT", unit: "psi", mode: "valve", initial: 330, valves: ["OBB"], rates: { "0": -2, "1": 30 }, min: 0, max: 500 }
   ]
+};
+
+const FEEDBACK_MAPPING = {
+  valves: ["CISO", "CMV"],
+  sensors: [{ name: "CTPT", unit: "psi", mode: "valve", initial: 200,
+    valves: ["CISO", "CMV"], rates: { "00": 0, "01": -25, "10": 40, "11": 0 }, min: 0, max: 500 }]
 };
 
 const $ = id => document.getElementById(id);
@@ -348,7 +355,8 @@ $("validate").onclick = () => run("validate");
 $("simulate").onclick = () => run("simulate");
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
-  environment.load(button.dataset.example === "vespula" ? VESPULA_MAPPING : DEFAULT_MAPPING);
+  environment.load(button.dataset.example === "vespula" ? VESPULA_MAPPING :
+    button.dataset.example === "feedback" ? FEEDBACK_MAPPING : DEFAULT_MAPPING);
   updateEditor();
   source.focus();
   source.setSelectionRange(0, 0);

@@ -8,8 +8,9 @@ A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna)
 2. Undefined-name checks, including missing `import time` and typos in script variables.
 3. Luna API and mapping checks for exported names, valve/sensor constructors, and their methods.
 4. Browser-only simulated execution, virtual time, mock sensors, valve commands, exceptions, and an event trace.
-5. Synchronized valve-state and sensor-profile plots, with up to four pinned time cursors and per-trace readouts.
-6. Click a valve transition, a sensor source-link, or a trace event to highlight the originating Python line.
+5. Valve-driven sensors with complete valve-state truth tables, linear rates, and optional bounds for feedback control loops.
+6. Synchronized valve-state and sensor plots, with up to four pinned time cursors and per-trace readouts.
+7. Click a valve transition, a sensor source-link, or a trace event to highlight the originating Python line.
 
 **Not implemented:** behavioral assertions (layer 5), fault injection (layer 6), accurate hardware behavior, hardware-confirmed abort stages, or physical SAM testing. Passing these checks does not demonstrate that a sequence is safe to run on hardware.
 
@@ -39,7 +40,8 @@ GitHub Actions runs these checks on every push and PR. A push to `main` deploys 
 Operators configure valves and sensor profiles in the Test Environment tab. Luna injects names from flight mappings, so these names must be declared independently of the sequence to catch undefined devices and invalid method calls. The site ships with illustrative names only.
 
 - Add valves in a compact table and choose their **initial simulation state** (`OPEN` or `CLOSED`). This is not the physical normally-open/normally-closed polarity in Luna's SAM mappings.
-- Add sensors by name and unit. Sensor cards show a compact waveform preview and expand to edit timestamped readings. Choose **Step / hold** (default) or **Linear** interpolation.
+- Add sensors by name and unit. **Time profile** sensors accept timestamped readings with **Step / hold** (default) or **Linear** interpolation.
+- Change the sensor behavior to **Valve-driven** for feedback simulation. Select 1–4 influencing logical valve names and enter an explicit rate (in sensor units per second) for *every* OPEN/CLOSED combination; zero is a valid rate but a blank row is not. Enter the initial reading and optional lower/upper limits. A missing or invalid row prevents simulation.
 - Switch between sequence and environment tabs or show both in split view. The generated JSON is internal and not edited directly.
 
 The stored configuration has this format (legacy valve-name strings remain supported):
@@ -67,11 +69,24 @@ The stored configuration has this format (legacy valve-name strings remain suppo
 
 Step profiles hold the most recent sample at or before virtual time `t`; linear profiles interpolate between adjacent samples. No physical tank or valve model is assumed. Supported sensor units: `unknown`, `psi`, `V`, `A`, `lbf`, `K`.
 
+For example, a pressure sensor affected by `CISO` and `CMV` can use a complete four-row truth table:
+
+```json
+{
+  "name": "CTPT", "unit": "psi", "mode": "valve", "initial": 200,
+  "valves": ["CISO", "CMV"],
+  "rates": { "00": 0, "01": -25, "10": 40, "11": 0 },
+  "min": 0, "max": 500
+}
+```
+
+Each bit is the corresponding valve in the listed order: `0` means CLOSED, `1` means OPEN. The value is a signed rate in `psi/s`. On each virtual-time advance, the current valve-state combination selects the rate; the reading evolves continuously from its last value. Changing a valve switches rates without resetting the sensor. The generated sensor trace includes state-change breakpoints and limit crossings so the plotted line and pinned-cursor readouts follow simulated values. The **Valve-driven CTPT** and **Vespula prePress** examples demonstrate feedback behavior with illustrative rates, not measured tank performance.
+
 ## Simulation output
 
-After **Run simulation**, the result contains two aligned plots: requested valve states and the configured sensor input profiles. Hovering either plot synchronizes the time cursor and shows every mapped trace's value. Clicking an empty part of a plot pins a cursor; up to four can be compared side by side and removed individually. Clicking a valve transition or the event-log line link jumps to the source line that issued it. Sensor track links jump to their recorded `.read()` lines; clicking a line in the editor highlights associated valve transitions on the plot. The detailed event log is collapsible.
+After **Run simulation**, the result contains two aligned plots: requested valve states and sensor readings (including valve-driven responses). Hovering either plot synchronizes the time cursor and shows every mapped trace's value; valve-driven readouts also show the active truth-table combination and its rate. Clicking an empty part of a plot pins a cursor; up to four can be compared side by side and removed individually. Clicking a valve transition or the event-log line link jumps to the source line that issued it. Sensor track links jump to their recorded `.read()` lines; clicking a line in the editor highlights associated valve transitions on the plot. The detailed event log is collapsible.
 
-The sensor profiles are **inputs**, not calculated responses to valve actuation. A graph that looks plausible is not physical verification or validation of control performance.
+Time profiles are **inputs** independent of commands. Valve-driven readings respond to *commanded* valve states using user-entered rates, not a physical fluid model or feedback from real actuators. A graph that looks plausible is not physical verification or validation of control performance. A feedback loop without any operation advancing virtual time can still stall.
 
 ## Compatibility and limitations
 

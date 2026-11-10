@@ -200,28 +200,28 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 #engine-status { margin-left: auto; max-width: 240px; text-align: right; color: #9bad9f; font-size: 11px; line-height: 1.5; }
 #engine-status[data-level=error] { color: #ffad9f; }
 #engine-status[data-level=success] { color: #98ddab; }
-.flight-progress { padding: 18px 22px 14px; border-top: 1px solid #44513b; background: radial-gradient(ellipse at 14% 0%, #5543133c, transparent 60%), #111d1b; }
+.flight-progress { display: flex; align-items: center; gap: 23px; padding: 18px 23px; border-top: 1px solid #44513b; background: radial-gradient(ellipse at 8% 45%, #5543133c, transparent 55%), #111d1b; }
 .flight-progress[hidden] { display: none; }
-.flight-header, .flight-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.flight-readout { display: flex; flex: 1; flex-direction: column; gap: 11px; min-width: 0; }
+.flight-header { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
 .flight-title { display: inline-flex; align-items: center; gap: 9px; color: #e8c36b; font-size: 10px; letter-spacing: .11em; font-weight: 800; }
-.flight-header strong { font: 800 19px Consolas, monospace; color: #f0c15d; white-space: nowrap; }
+.flight-header strong { font: 800 25px Consolas, monospace; color: #f0c15d; white-space: nowrap; }
 .flight-pulse { width: 8px; height: 8px; border-radius: 50%; background: #f4bc47; box-shadow: 0 0 13px #e0a500aa; animation: flight-pulse 1.2s ease-in-out infinite; }
-.flight-track { position: relative; height: 24px; margin: 18px 12px 12px; border: 1px solid #4e5337; border-radius: 20px; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), #d8a74c19 calc(10% - 1px), #d8a74c19 10%), #1d2925; }
-.flight-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #99701a6e, #dca73591); box-shadow: inset 0 0 9px #ffd27824; transition: width .12s linear; }
-.flight-pad, .flight-goal { position: absolute; top: 50%; color: #d1b26d; font-size: 14px; transform: translateY(-50%); }
-.flight-pad { left: 6px; color: #987b4a; }
-.flight-goal { right: 7px; color: #f0c665; text-shadow: 0 0 10px #e0a50088; }
-.flight-rocket { position: absolute; z-index: 1; top: -15px; left: 1%; font-size: 29px; line-height: 1; transform: translateX(-30%) rotate(44deg); filter: drop-shadow(0 0 7px #e9aa4b88); transition: left .12s linear; animation: flight-hover .8s ease-in-out infinite alternate; }
-.flight-footer { color: #c0b38c; font: 11px Consolas, monospace; }
-.flight-note { margin: 10px 0 0; color: #829c8e; font-size: 10px; line-height: 1.4; }
+.flight-dial { --flight-sweep: 0deg; --flight-color: #e0a500; position: relative; display: grid; flex: 0 0 98px; place-items: center; width: 98px; height: 98px; border-radius: 50%; background: conic-gradient(from -90deg, var(--flight-color) 0deg var(--flight-sweep), #34443b var(--flight-sweep) 360deg); box-shadow: 0 0 0 1px #57634b55, 0 0 24px #b1892930; }
+.flight-dial::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: radial-gradient(circle at 55% 40%, #28352c, #111e1b 70%); box-shadow: inset 0 0 15px #0009; }
+.flight-dial-core { position: relative; z-index: 1; display: grid; place-items: center; width: 100%; height: 100%; }
+.flight-rocket { display: block; font-size: 34px; line-height: 1; filter: drop-shadow(0 0 8px #e9aa4b88); animation: flight-hover .8s ease-in-out infinite alternate; }
+.flight-footer { display: flex; flex-wrap: wrap; gap: 5px 18px; color: #c0b38c; font: 11px Consolas, monospace; }
 .flight-progress[data-phase="complete"] .flight-pulse { animation: none; background: #8fdfa9; box-shadow: 0 0 12px #8fdfa955; }
 .flight-progress[data-phase="complete"] .flight-title { color: #a8e5b6; }
 .flight-progress[data-phase="stopped"] .flight-pulse { animation: none; background: #f29e8e; box-shadow: 0 0 12px #f29e8e66; }
 .flight-progress[data-phase="stopped"] .flight-title { color: #f0a89b; }
+.flight-progress[data-phase="complete"] .flight-dial { --flight-color: #8fdfa9; }
+.flight-progress[data-phase="stopped"] .flight-dial { --flight-color: #f29e8e; }
 .flight-progress[data-phase="complete"] .flight-rocket, .flight-progress[data-phase="stopped"] .flight-rocket { animation: none; }
 @keyframes flight-pulse { 50% { opacity: .45; box-shadow: 0 0 3px #e0a50066; } }
-@keyframes flight-hover { to { margin-top: -3px; } }
-@media (prefers-reduced-motion: reduce) { .flight-pulse, .flight-rocket { animation: none; } .flight-fill, .flight-rocket { transition: none; } }
+@keyframes flight-hover { to { transform: translateY(-4px) rotate(-5deg); } }
+@media (prefers-reduced-motion: reduce) { .flight-pulse, .flight-rocket { animation: none; } }
 
 .side-panel { min-width: 0; display: flex; flex-direction: column; background: #14201e; }
 .side-section { padding: 19px; border-bottom: 1px solid #2b3934; }
@@ -364,9 +364,10 @@ footer strong { color: #efc261; }
   .editor-tab { padding: 17px 14px; }
   .header-actions { margin-left: 14px; gap: 15px; }
   .actions { padding: 15px; }
-  .flight-progress { padding: 16px 15px; }
-  .flight-header strong { font-size: 16px; }
-  .flight-footer { flex-wrap: wrap; gap: 5px; }
+  .flight-progress { gap: 15px; padding: 16px 15px; }
+  .flight-dial { flex-basis: 77px; width: 77px; height: 77px; }
+  .flight-rocket { font-size: 28px; }
+  .flight-header strong { font-size: 21px; }
   #engine-status { max-width: none; width: 100%; text-align: left; margin: 5px 0 0; }
   .side-section { padding: 19px; }
   .env-group { padding: 12px; }

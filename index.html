@@ -18,7 +18,7 @@
 
     <main>
       <section class="intro">
-        <div><div class="eyebrow">YJSP / LUNA</div><h1>Sequence Tester<span class="accent">.</span></h1><p>Python validation <span>·</span> API checks <span>·</span> Accelerated simulation</p></div>
+        <div><div class="eyebrow">YJSP / LUNA</div><h1>Sequence Tester<span class="accent">.</span></h1></div>
         <div class="intro-tag"><span class="dot"></span> PYTHON / SIMULATOR</div>
       </section>
 
@@ -56,18 +56,16 @@
             <span id="engine-status" role="status">Loading Python runtime…</span>
           </div>
           <div id="flight-progress" class="flight-progress" data-phase="running" aria-label="Simulation elapsed-time progress" hidden>
-            <div class="flight-header">
-              <span class="flight-title"><span class="flight-pulse" aria-hidden="true"></span><span id="flight-phase">SIMULATION IN PROGRESS</span></span>
-              <strong id="flight-elapsed">T+ 0.0s</strong>
+            <div id="flight-track" class="flight-dial" role="progressbar" aria-label="Simulated time used toward timeout" aria-valuemin="0" aria-valuemax="600" aria-valuenow="0">
+              <div class="flight-dial-core"><span class="flight-rocket" aria-hidden="true">🚀</span></div>
             </div>
-            <div id="flight-track" class="flight-track" role="progressbar" aria-label="Simulated time used toward timeout" aria-valuemin="0" aria-valuemax="600" aria-valuenow="0">
-              <div id="flight-fill" class="flight-fill"></div>
-              <span class="flight-pad" aria-hidden="true">▰</span>
-              <span id="flight-rocket" class="flight-rocket" aria-hidden="true">🚀</span>
-              <span class="flight-goal" aria-hidden="true">✦</span>
+            <div class="flight-readout">
+              <div class="flight-header">
+                <span class="flight-title"><span class="flight-pulse" aria-hidden="true"></span><span id="flight-phase">SIMULATION IN PROGRESS</span></span>
+                <strong id="flight-elapsed">T+ 0.0s</strong>
+              </div>
+              <div class="flight-footer"><span id="flight-wall">0.0s wall time · 5× speed</span><span id="flight-limit">600s simulation limit</span></div>
             </div>
-            <div class="flight-footer"><span id="flight-wall">0.0s elapsed · 5× speed</span><span id="flight-limit">600s simulation limit</span></div>
-            <p class="flight-note">Rocket position shows time used toward the simulation limit, not estimated sequence completion.</p>
           </div>
         </section>
 

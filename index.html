@@ -50,10 +50,24 @@
             <button id="validate" class="button secondary" type="button">Validate code</button>
             <button id="simulate" class="button primary" type="button"><span>▶</span> Run simulation</button>
             <div class="clock-settings" aria-label="Simulation clock settings">
-              <label>Speed <select id="clock-speed"><option value="1">1×</option><option value="5" selected>5×</option><option value="10">10×</option><option value="20">20×</option></select></label>
+              <label>Speed <select id="clock-speed"><option value="1">1×</option><option value="5" selected>5×</option></select></label>
               <label>Limit <input id="time-limit" type="number" value="600" min="1" max="3600" step="1" aria-label="Maximum simulated seconds" /> s</label>
             </div>
             <span id="engine-status" role="status">Loading Python runtime…</span>
+          </div>
+          <div id="flight-progress" class="flight-progress" data-phase="running" aria-label="Simulation elapsed-time progress" hidden>
+            <div class="flight-header">
+              <span class="flight-title"><span class="flight-pulse" aria-hidden="true"></span><span id="flight-phase">SIMULATION IN PROGRESS</span></span>
+              <strong id="flight-elapsed">T+ 0.0s</strong>
+            </div>
+            <div id="flight-track" class="flight-track" role="progressbar" aria-label="Simulated time used toward timeout" aria-valuemin="0" aria-valuemax="600" aria-valuenow="0">
+              <div id="flight-fill" class="flight-fill"></div>
+              <span class="flight-pad" aria-hidden="true">▰</span>
+              <span id="flight-rocket" class="flight-rocket" aria-hidden="true">🚀</span>
+              <span class="flight-goal" aria-hidden="true">✦</span>
+            </div>
+            <div class="flight-footer"><span id="flight-wall">0.0s elapsed · 5× speed</span><span id="flight-limit">600s simulation limit</span></div>
+            <p class="flight-note">Rocket position shows time used toward the simulation limit, not estimated sequence completion.</p>
           </div>
         </section>
 

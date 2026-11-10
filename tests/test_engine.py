@@ -274,7 +274,7 @@ while CTPT.read() > 210*psi:
     pass
 CMV.close()"""
         result = self.check(source, True, mapping=DRIVEN,
-                            options={"clock_mode": "realtime", "speed": 20, "max_duration": 5})
+                            options={"clock_mode": "realtime", "speed": 5, "max_duration": 5})
         self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
         self.assertEqual([event["detail"] for event in result["events"]],
                          ["OPEN", "CLOSED", "OPEN", "CLOSED"])
@@ -285,7 +285,7 @@ CMV.close()"""
 
     def test_continuous_wait_until_timeout_preserves_luna_semantics(self):
         result = self.check("wait_until(lambda: tank_pt.read() > 500*psi, 200*ms)", True,
-                            options={"clock_mode": "realtime", "speed": 10, "max_duration": 2})
+                            options={"clock_mode": "realtime", "speed": 5, "max_duration": 2})
         self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
         self.assertTrue(any(event["kind"] == "timeout" for event in result["events"]))
         self.assertGreaterEqual(result["virtual_time"], 0.2)
@@ -303,17 +303,25 @@ CMV.close()"""
 while CTPT.read() < 300*psi:
     pass"""
         result = self.check(source, True, mapping=DRIVEN,
-                            options={"clock_mode": "realtime", "speed": 20, "max_duration": 1})
+                            options={"clock_mode": "realtime", "speed": 5, "max_duration": 1})
         self.assertEqual(result["checks"]["runtime"], "fail")
         self.assertIn("SimulationLimit", result["diagnostics"][-1]["message"])
         self.assertIn("last CTPT=", result["diagnostics"][-1]["message"])
         self.assertIn("CISO=OPEN", result["diagnostics"][-1]["message"])
 
     def test_invalid_clock_options_are_diagnosed(self):
-        for options in ({"clock_mode": "unknown"}, {"speed": 0}, {"max_duration": 0}):
+        for options in ({"clock_mode": "unknown"}, {"speed": 0}, {"speed": 10},
+                        {"speed": 20}, {"speed": True}, {"max_duration": 0}):
             result = self.check("print('hello')", True, options=options)
             self.assertEqual(result["checks"]["runtime"], "fail")
             self.assertIn("Invalid simulation settings", result["diagnostics"][-1]["message"])
+
+    def test_one_x_simulation_speed_is_supported(self):
+        result = self.check("wait_for(20*ms)", True,
+                            options={"clock_mode": "realtime", "speed": 1, "max_duration": 2})
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertGreaterEqual(result["virtual_time"], 0.02)
+        self.assertEqual(result["timing"]["requested_speed"], 1)
 
 
 if __name__ == "__main__":

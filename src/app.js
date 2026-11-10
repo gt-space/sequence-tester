@@ -44,12 +44,48 @@ let startupTimeout;
 let running = false;
 let startupPhase = "Loading Python runtime…";
 let activeSourceLine = 0;
+let flightRun = null;
 
 const clockSpeed = $("clock-speed");
 const timeLimit = $("time-limit");
-clockSpeed.value = ["1", "5", "10", "20"].includes(localStorage.getItem("yjsp-clock-speed"))
+clockSpeed.value = ["1", "5"].includes(localStorage.getItem("yjsp-clock-speed"))
   ? localStorage.getItem("yjsp-clock-speed") : "5";
 timeLimit.value = localStorage.getItem("yjsp-time-limit") ?? "600";
+
+function updateFlight(simulated, wall, phase = "running") {
+  if (!flightRun) return;
+  const { limit, speed } = flightRun;
+  const seconds = Math.max(0, simulated);
+  const fraction = Math.min(1, seconds / limit);
+  const progress = $("flight-progress");
+  progress.dataset.phase = phase;
+  $("flight-phase").textContent = phase === "running" ? "SIMULATION IN PROGRESS" :
+    phase === "complete" ? "SEQUENCE FINISHED" : "SIMULATION STOPPED";
+  $("flight-elapsed").textContent = `T+ ${seconds.toFixed(1)}s`;
+  $("flight-fill").style.width = `${fraction * 100}%`;
+  $("flight-rocket").style.left = `${Math.max(1, Math.min(99, fraction * 100))}%`;
+  $("flight-wall").textContent = `${Math.max(0, wall).toFixed(1)}s wall time · ${speed}× speed`;
+  $("flight-limit").textContent = `${limit}s simulation limit`;
+  const track = $("flight-track");
+  track.setAttribute("aria-valuemax", String(limit));
+  track.setAttribute("aria-valuenow", String(Math.min(limit, Number(seconds.toFixed(1)))));
+  track.setAttribute("aria-valuetext", `${seconds.toFixed(1)} simulated seconds of ${limit} second limit`);
+}
+
+function startFlight(request) {
+  flightRun = { speed: request.options.speed, limit: request.options.max_duration, started: performance.now() };
+  $("flight-progress").hidden = false;
+  updateFlight(0, 0);
+}
+
+function finishFlight(result) {
+  if (!flightRun) return;
+  const elapsed = (performance.now() - flightRun.started) / 1000;
+  const simulated = typeof result?.virtual_time === "number" ? result.virtual_time : elapsed * flightRun.speed;
+  updateFlight(simulated, result?.timing?.wall_seconds ?? elapsed,
+    result?.checks?.runtime === "pass" ? "complete" : "stopped");
+  flightRun = null;
+}
 
 function clearExecutionTimers() {
   clearTimeout(executionTimeout);
@@ -142,6 +178,7 @@ function makeWorker() {
       clearExecutionTimers();
       running = false;
       pending = null;
+      finishFlight(data.result);
       render(data.result);
       setStatus(data.result.checks?.runtime === "fail" ? "Simulation stopped · inspect diagnostics" : "Check complete",
         data.result.checks?.runtime === "fail" ? "error" : "success");
@@ -150,12 +187,15 @@ function makeWorker() {
       clearExecutionTimers();
       running = false;
       pending = null;
+      finishFlight(null);
       setStatus(`Execution failed: ${data.message}`, "error");
     }
   };
   worker.onerror = event => {
     clearTimeout(startupTimeout);
     clearExecutionTimers();
+    finishFlight(null);
+    running = false;
     setStatus(`Runtime error: ${event.message}`, "error");
     worker.terminate();
     worker = null;
@@ -165,15 +205,21 @@ function makeWorker() {
 function dispatch(request) {
   pending = null;
   running = true;
+  if (request.mode !== "simulate") {
+    flightRun = null;
+    $("flight-progress").hidden = true;
+  }
   setStatus(request.mode === "simulate" ? "Simulating…" : "Validating…");
   worker.postMessage(request);
   const realtime = request.mode === "simulate" && request.options.clock_mode === "realtime";
   const wallLimit = realtime ? (request.options.max_duration / request.options.speed) * 1000 + 15000 : 15000;
   const startWall = performance.now();
   if (request.mode === "simulate") {
+    startFlight(request);
     elapsedTicker = setInterval(() => {
       const elapsed = (performance.now() - startWall) / 1000;
       const time = realtime ? elapsed * request.options.speed : 0;
+      updateFlight(time, elapsed);
       setStatus(realtime
         ? `Simulating ${request.options.speed}× · ~${time.toFixed(1)}s simulated / ${elapsed.toFixed(1)}s elapsed`
         : `Deterministic simulation · ${elapsed.toFixed(1)}s elapsed`);
@@ -182,6 +228,7 @@ function dispatch(request) {
   executionTimeout = setTimeout(() => {
     const seconds = wallLimit / 1000;
     render({ checks: { syntax: "pass", names: "not_run", api: "not_run", runtime: "fail" }, diagnostics: [{ stage: "runtime", severity: "error", message: `Execution exceeded the ${seconds.toFixed(1)}s wall-clock watchdog limit; check for an infinite loop or stalled condition`, line: 0 }], events: [], virtual_time: null, stdout: "" });
+    finishFlight(null);
     running = false;
     makeWorker();
     setStatus(`Execution stopped after ${seconds.toFixed(1)}s. Restarting Python runtime…`, "error");
@@ -194,11 +241,16 @@ function run(mode) {
     return;
   }
   const maxDuration = Number(timeLimit.value);
+  const speed = Number(clockSpeed.value);
+  if (mode === "simulate" && ![1, 5].includes(speed)) {
+    setStatus("Simulation speed must be 1× or 5×", "error");
+    return;
+  }
   if (mode === "simulate" && (!Number.isFinite(maxDuration) || maxDuration < 1 || maxDuration > 3600)) {
     setStatus("Simulated-time limit must be between 1 and 3600 seconds", "error");
     return;
   }
-  const options = { clock_mode: "realtime", speed: Number(clockSpeed.value),
+  const options = { clock_mode: "realtime", speed,
     max_duration: mode === "simulate" ? maxDuration : 600 };
   const request = { id: ++currentId, mode, source: source.value, mapping: mapping.value, options };
   localStorage.setItem("yjsp-sequence-source", source.value);
@@ -216,6 +268,8 @@ function run(mode) {
 function invalidateResults() {
   currentId++;
   pending = null;
+  flightRun = null;
+  $("flight-progress").hidden = true;
   if (running) {
     running = false;
     makeWorker();

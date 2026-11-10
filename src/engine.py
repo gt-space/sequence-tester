@@ -577,8 +577,8 @@ def run_sequence(source, mapping, execute=False, options=None):
         max_duration = options.get("max_duration", 600)
         if clock_mode not in ("deterministic", "realtime"):
             raise ValueError("Clock mode must be realtime or deterministic")
-        if isinstance(speed, bool) or not isinstance(speed, (int, float)) or not math.isfinite(speed) or not 1 <= speed <= 20:
-            raise ValueError("Simulation speed must be between 1× and 20×")
+        if isinstance(speed, bool) or speed not in (1, 5):
+            raise ValueError("Simulation speed must be either 1× or 5×")
         if (isinstance(max_duration, bool) or not isinstance(max_duration, (int, float))
                 or not math.isfinite(max_duration) or not 1 <= max_duration <= 3600):
             raise ValueError("Simulated-time limit must be between 1 and 3600 seconds")

@@ -221,6 +221,8 @@ function updateEditor() {
   $("gutter").textContent = Array.from({ length: count }, (_, i) => String(i + 1)).join("\n");
   $("editor-info").textContent = `${count} lines · ${source.value.length} characters`;
   highlightPython(source.value, $("highlight"));
+  $("highlight").scrollTop = source.scrollTop;
+  $("highlight").scrollLeft = source.scrollLeft;
   localStorage.setItem("yjsp-sequence-source", source.value);
 }
 
@@ -252,6 +254,12 @@ document.querySelectorAll("[data-example]").forEach(button => button.onclick = (
   updateEditor();
   invalidateResults();
   source.focus();
+  source.setSelectionRange(0, 0);
+  source.scrollTop = 0;
+  source.scrollLeft = 0;
+  $("highlight").scrollTop = 0;
+  $("highlight").scrollLeft = 0;
+  $("gutter").scrollTop = 0;
 });
 $("upload").onclick = () => $("file-input").click();
 $("file-input").onchange = async event => {

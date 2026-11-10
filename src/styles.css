@@ -85,6 +85,7 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .environment-pane { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; background: #0e1717; }
 .environment-label { display: flex; justify-content: space-between; gap: 12px; padding: 15px 19px; border-bottom: 1px solid #2f413a; background: #121f1c; color: #a7bdb1; font-size: 11px; }
 .environment-label span:last-child { color: var(--gold); font-size: 10px; letter-spacing: .12em; }
+.editor-body textarea { scrollbar-color: #425b50 #101a19; scrollbar-width: thin; }
 #mapping { width: 100%; flex: 1; min-height: 0; padding: 20px; resize: none; border: 0; outline: 0; background: transparent; color: #e2eae4; font: 12px/1.7 "SFMono-Regular", Consolas, "Liberation Mono", monospace; tab-size: 2; }
 #gutter { flex: 0 0 51px; min-height: 0; margin: 0; padding: 25px 14px 25px 0; text-align: right; background: #101a19; color: #62746c; font: 13px/1.9 "SFMono-Regular", Consolas, "Liberation Mono", monospace; overflow: hidden; user-select: none; border-right: 1px solid #22312d; }
 .code-input { position: relative; flex: 1; min-width: 0; min-height: 0; }

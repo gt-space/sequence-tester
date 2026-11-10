@@ -17,7 +17,7 @@ A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna)
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000`. The page downloads [Pyodide](https://pyodide.org/) on first use, so an internet connection is required. Python executes in a Web Worker. A stuck worker is terminated after five seconds of execution (initial loading is allowed more time).
+Open `http://localhost:8000`. The deployed site serves [Pyodide](https://pyodide.org/) locally, while local development needs a copy of Pyodide under `src/pyodide/` (`npm install --no-save --prefix /tmp/sequence-pyodide pyodide@314.0.7` then copy the package). Python executes in a Web Worker. A stuck worker is terminated after five seconds of execution (initial loading is allowed more time).
 
 ## Test
 

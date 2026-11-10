@@ -1,4 +1,4 @@
-const PYODIDE_BASE = "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/";
+const PYODIDE_BASE = new URL("./pyodide/", self.location.href).href;
 
 let ready;
 

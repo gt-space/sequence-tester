@@ -1,10 +1,10 @@
+import { loadPyodide } from "./pyodide/pyodide.mjs";
+
 const PYODIDE_BASE = new URL("./pyodide/", self.location.href).href;
 
 let ready;
 
 async function initialize() {
-  self.postMessage({ type: "progress", message: "Loading Python loader…" });
-  importScripts(`${PYODIDE_BASE}pyodide.js`);
   self.postMessage({ type: "progress", message: "Initializing Python runtime…" });
   const pyodide = await loadPyodide({ indexURL: PYODIDE_BASE });
   self.postMessage({ type: "progress", message: "Loading Luna validation engine…" });

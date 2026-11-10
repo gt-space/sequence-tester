@@ -24,22 +24,34 @@ Open `http://localhost:8000`. The deployed site serves [Pyodide](https://pyodide
 ```sh
 python3 -m unittest discover -s tests -v
 node --check src/app.js
+node --check src/environment.js
 node --check src/worker.js
+node --test tests/test_environment.mjs
 ```
 
 GitHub Actions runs these checks on every push and PR. A push to `main` deploys the static site through GitHub Pages once Pages is enabled for the repository.
 
-## Mapping format
+## Test Environment
 
-Luna injects hardware names from the active flight mappings. The website ships with **illustrative names only**; enter the names from the actual configuration to validate references accurately.
+Operators configure valves and sensor profiles in the Test Environment tab. Luna injects names from flight mappings, so these names must be declared independently of the sequence to catch undefined devices and invalid method calls. The site ships with illustrative names only.
+
+- Add valves by name and choose their **initial simulation state** (`OPEN` or `CLOSED`). This is not the physical normally-open/normally-closed polarity in Luna's SAM mappings.
+- Add sensors by name and unit, then edit timestamped readings. The graph previews the profile. Choose **Step / hold** (default) or **Linear** interpolation.
+- Switch between sequence and environment tabs or show both in split view. The generated JSON is internal and not edited directly.
+
+The stored configuration has this format (legacy valve-name strings remain supported):
 
 ```json
 {
-  "valves": ["press_valve", "vent_valve"],
+  "valves": [
+    { "name": "press_valve", "initial": "CLOSED" },
+    { "name": "vent_valve", "initial": "OPEN" }
+  ],
   "sensors": [
     {
       "name": "tank_pt",
       "unit": "psi",
+      "interpolation": "step",
       "samples": [
         { "at": 0, "value": 0 },
         { "at": 2, "value": 220 },
@@ -50,7 +62,7 @@ Luna injects hardware names from the active flight mappings. The website ships w
 }
 ```
 
-The most recent sensor sample at or before virtual time `t` supplies `Sensor.read()`. No physical tank or valve model is assumed. Supported sensor units: `unknown`, `psi`, `V`, `A`, `lbf`, `K`.
+Step profiles hold the most recent sample at or before virtual time `t`; linear profiles interpolate between adjacent samples. No physical tank or valve model is assumed. Supported sensor units: `unknown`, `psi`, `V`, `A`, `lbf`, `K`.
 
 ## Compatibility and limitations
 

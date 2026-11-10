@@ -1,4 +1,5 @@
 import { highlightPython } from "./highlight.js";
+import { createEnvironmentEditor } from "./environment.js";
 
 const EXAMPLES = {
   vespula: "# tank pre press sequence\nimport time\nprint('Pre Press Sequence has begun')\n\n# define pressure variables\nftpt_target = 416*psi # psia, target fuel tank pressure\notpt_target = 357*psi # psia, target lox tank pressure\nupRan = 2*psi # psi, upper range bound for bang bang algorithm\nlowRan = 3*psi # psi, lower range bound for bang bang algorithm\n\n# time variables\npress_time = 20 # s, sequence duration\nwait_timing = 5 # ms\n\n# confirm switch closed\nFSWV.close()\nOSWV.close()\nwait_for(wait_timing*ms)\n\n# initialize valve state variables\nFBB.close()\nFBBopen = False # hardcoded for consistency\nOBB.close()\nOBBopen = False # hardcoded due to feedback issues on sam-21\n\nstart_time = time.time() # s, current time\n\n# press tanks with bang bang algorithm\nwhile time.time() < start_time + press_time:\n\t# check pressures\n\tcurrFTPT = FTPT.read()\n\tcurrOTPT = OTPT.read()\n\t# bang bang algorithm\n\tif FBBopen and currFTPT > ftpt_target + upRan:\n\t\tFBB.close()\n\t\tFBBopen = False\n\telif (not FBBopen) and currFTPT < ftpt_target - lowRan:\n\t\tFBB.open()\n\t\tFBBopen = True\n\tif OBBopen and currOTPT > otpt_target + upRan:\n\t\tOBB.close()\n\t\tOBBopen = False\n\telif (not OBBopen) and currOTPT < otpt_target - lowRan:\n\t\tOBB.open()\n\t\tOBBopen = True\n\twait_for(wait_timing*ms)\n\nOBB.close()\nFBB.close()\n\nprint('Pre Press Sequence has ended')",
@@ -228,7 +229,19 @@ function updateEditor() {
 }
 
 source.value = localStorage.getItem("yjsp-sequence-source") ?? EXAMPLES.tank;
-mapping.value = localStorage.getItem("yjsp-sequence-mapping") ?? JSON.stringify(DEFAULT_MAPPING, null, 2);
+const environment = createEnvironmentEditor({
+  mapping,
+  valveList: $("valve-list"),
+  sensorList: $("sensor-list"),
+  initial: localStorage.getItem("yjsp-sequence-mapping") ?? DEFAULT_MAPPING,
+  fallback: DEFAULT_MAPPING,
+  onChange: () => {
+    localStorage.setItem("yjsp-sequence-mapping", mapping.value);
+    invalidateResults();
+  }
+});
+$("add-valve").onclick = environment.addValve;
+$("add-sensor").onclick = environment.addSensor;
 let currentTab = "sequence";
 let splitView = false;
 function updateLayout() {
@@ -247,7 +260,8 @@ function updateLayout() {
 function selectTab(name) {
   currentTab = name;
   updateLayout();
-  (name === "sequence" ? source : mapping).focus();
+  if (name === "sequence") source.focus();
+  else environment.focus();
 }
 $("sequence-tab").onclick = () => selectTab("sequence");
 $("environment-tab").onclick = () => selectTab("environment");
@@ -269,15 +283,12 @@ source.addEventListener("keydown", event => {
     run("simulate");
   }
 });
-mapping.addEventListener("input", () => { localStorage.setItem("yjsp-sequence-mapping", mapping.value); invalidateResults(); });
 $("validate").onclick = () => run("validate");
 $("simulate").onclick = () => run("simulate");
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
-  mapping.value = JSON.stringify(button.dataset.example === "vespula" ? VESPULA_MAPPING : DEFAULT_MAPPING, null, 2);
-  localStorage.setItem("yjsp-sequence-mapping", mapping.value);
+  environment.load(button.dataset.example === "vespula" ? VESPULA_MAPPING : DEFAULT_MAPPING);
   updateEditor();
-  invalidateResults();
   source.focus();
   source.setSelectionRange(0, 0);
   source.scrollTop = 0;

@@ -40,14 +40,22 @@ def check_mapping(raw):
         sensors = data.get("sensors", [])
         if not isinstance(valves, list) or not isinstance(sensors, list):
             raise ValueError("valves and sensors must be arrays")
-        valve_names = set()
+        valve_names = {}
         sensor_data = {}
-        for name in valves:
+        for valve in valves:
+            if isinstance(valve, str):
+                name, initial = valve, "CLOSED"
+            elif isinstance(valve, dict):
+                name, initial = valve.get("name"), valve.get("initial", "CLOSED")
+            else:
+                raise ValueError(f"Invalid valve definition: {valve!r}")
             if not isinstance(name, str) or not name.isidentifier():
                 raise ValueError(f"Invalid valve name: {name!r}")
             if name in valve_names or name in API:
                 raise ValueError(f"Duplicate or reserved valve name: {name}")
-            valve_names.add(name)
+            if initial not in {"OPEN", "CLOSED"}:
+                raise ValueError(f"Invalid initial state for {name}: {initial!r}")
+            valve_names[name] = initial
         for sensor in sensors:
             if not isinstance(sensor, dict):
                 raise ValueError("Each sensor must be an object")
@@ -59,6 +67,9 @@ def check_mapping(raw):
                 raise ValueError(f"Duplicate or reserved sensor name: {name}")
             if unit not in UNITS:
                 raise ValueError(f"Unsupported unit for {name}: {unit}")
+            interpolation = sensor.get("interpolation", "step")
+            if interpolation not in {"step", "linear"}:
+                raise ValueError(f"Unsupported profile for {name}: {interpolation}")
             samples = sensor.get("samples", [{"at": 0, "value": sensor.get("value", 0)}])
             if not isinstance(samples, list) or not samples:
                 raise ValueError(f"{name} requires at least one sample")
@@ -72,7 +83,7 @@ def check_mapping(raw):
                 if not isinstance(value, (int, float)) or not math.isfinite(value):
                     raise ValueError(f"{name} sample values must be finite numbers")
                 previous = at
-            sensor_data[name] = dict(unit=unit, samples=samples)
+            sensor_data[name] = dict(unit=unit, samples=samples, interpolation=interpolation)
         return valve_names, sensor_data, problems
     except (ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
         problems.append(diagnostic("api", "error", str(error)))
@@ -88,7 +99,7 @@ def check_source(source, valves, sensors):
         return None, [diagnostic("syntax", "error", error.msg, error.lineno or 0, error.offset or 0)]
 
     table = symtable.symtable(source, "sequence.py", "exec")
-    defined = set(dir(builtins)) | API | valves | set(sensors)
+    defined = set(dir(builtins)) | API | set(valves) | set(sensors)
     for symbol in table.get_symbols():
         if symbol.is_assigned() or symbol.is_imported() or symbol.is_namespace():
             defined.add(symbol.get_name())
@@ -192,7 +203,7 @@ class Simulator:
     def __init__(self, valves, sensors):
         self.time = 0.0
         self.events = []
-        self.valves = {name: "CLOSED" for name in valves}
+        self.valves = dict(valves)
         self.sensors = sensors
         self.stage = ""
         self.condition = ""
@@ -215,10 +226,15 @@ class Simulator:
             raise KeyError(f"Unknown sensor '{name}'")
         sensor = self.sensors[name]
         value = sensor["samples"][0]["value"]
-        for sample in sensor["samples"]:
+        previous = sensor["samples"][0]
+        for sample in sensor["samples"][1:]:
             if sample["at"] > self.time:
+                if sensor["interpolation"] == "linear" and self.time > previous["at"]:
+                    ratio = (self.time - previous["at"]) / (sample["at"] - previous["at"])
+                    value = previous["value"] + ratio * (sample["value"] - previous["value"])
                 break
             value = sample["value"]
+            previous = sample
         return value if sensor["unit"] == "unknown" else Quantity(value, sensor["unit"])
 
     def make_module(self):

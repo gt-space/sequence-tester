@@ -117,6 +117,26 @@ class EngineTests(unittest.TestCase):
         result = self.check("press_valve.open()", True, mapping={"valves": ["press_valve"], "sensors": [{"name": "press_valve"}]})
         self.assertEqual(result["checks"]["api"], "fail")
 
+    def test_initial_open_valve_state(self):
+        mapping = {**MAPPING, "valves": [{"name": "press_valve", "initial": "OPEN"}, {"name": "vent_valve", "initial": "CLOSED"}]}
+        result = self.check("assert press_valve.is_open()\nassert vent_valve.is_closed()", True, mapping=mapping)
+        self.assertEqual(result["checks"]["runtime"], "pass")
+        self.assertEqual(result["valves"]["press_valve"], "OPEN")
+
+    def test_invalid_initial_valve_state(self):
+        mapping = {**MAPPING, "valves": [{"name": "press_valve", "initial": "UNKNOWN"}]}
+        result = self.check("press_valve.open()", True, mapping=mapping)
+        self.assertEqual(result["checks"]["api"], "fail")
+
+    def test_linear_sensor_profile(self):
+        mapping = {**MAPPING, "sensors": [{"name": "tank_pt", "unit": "psi", "interpolation": "linear", "samples": [{"at": 0, "value": 0}, {"at": 2, "value": 300}]}]}
+        result = self.check("wait_for(1*s)\nassert tank_pt.read() == 150*psi", True, mapping=mapping)
+        self.assertEqual(result["checks"]["runtime"], "pass")
+
+    def test_step_sensor_profile_remains_default(self):
+        result = self.check("wait_for(1*s)\nassert tank_pt.read() == 0*psi", True)
+        self.assertEqual(result["checks"]["runtime"], "pass")
+
     def test_unsupported_import_is_not_a_luna_error(self):
         result = self.check("import os\nprint('hello')")
         self.assertEqual(result["checks"]["names"], "pass")

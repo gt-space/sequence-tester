@@ -86,7 +86,38 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .environment-label { display: flex; justify-content: space-between; gap: 12px; padding: 15px 19px; border-bottom: 1px solid #2f413a; background: #121f1c; color: #a7bdb1; font-size: 11px; }
 .environment-label span:last-child { color: var(--gold); font-size: 10px; letter-spacing: .12em; }
 .editor-body textarea { scrollbar-color: #425b50 #101a19; scrollbar-width: thin; }
-#mapping { width: 100%; flex: 1; min-height: 0; padding: 20px; resize: none; border: 0; outline: 0; background: transparent; color: #e2eae4; font: 12px/1.7 "SFMono-Regular", Consolas, "Liberation Mono", monospace; tab-size: 2; }
+.environment-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #425b50 #101a19; scrollbar-width: thin; }
+.env-group { padding: 16px; border-bottom: 1px solid #2f413a; }
+.env-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 9px; }
+.env-heading h3 { margin: 0; font-size: 13px; letter-spacing: .02em; }
+.env-add, .env-action { color: var(--gold); background: #29372e; border: 1px solid #485541; border-radius: 5px; padding: 8px 11px; font-size: 11px; font-weight: 650; }
+.env-add:hover, .env-action:hover { background: #35432e; border-color: var(--gold); }
+.env-valve-list, .env-sensor-list { display: grid; gap: 9px; }
+.env-valve-row { display: grid; grid-template-columns: minmax(0,1fr) 102px 26px; align-items: end; gap: 8px; padding: 9px; border: 1px solid #30453a; border-radius: 6px; background: #182522; }
+.env-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.env-field-label { font-size: 9px; font-weight: 730; letter-spacing: .075em; color: #899f92; text-transform: uppercase; }
+.env-input, .env-select { width: 100%; min-width: 0; height: 35px; padding: 0 9px; color: #eaf0e9; background: #0e1917; border: 1px solid #3b5146; border-radius: 4px; font: 11px "SFMono-Regular", Consolas, monospace; }
+.env-input:focus, .env-select:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 0 1px #e0a50055; }
+.env-remove { width: 26px; height: 35px; padding: 0; color: #b1c0b8; background: transparent; border: 0; font-size: 21px; }
+.env-remove:hover { color: #ffad9f; }
+.env-remove:disabled { opacity: .25; cursor: not-allowed; }
+.env-empty { padding: 17px 10px; color: #84998d; font-size: 11px; border: 1px dashed #3a4b40; border-radius: 5px; }
+.env-sensor-card { display: flex; flex-direction: column; gap: 11px; padding: 12px; background: #182522; border: 1px solid #34473c; border-radius: 7px; }
+.env-sensor-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.env-sensor-header strong { font-size: 12px; overflow-wrap: anywhere; }
+.env-sensor-header .env-remove { height: 23px; }
+.env-sensor-fields { display: grid; grid-template-columns: minmax(0,1fr) 72px 100px; gap: 8px; }
+.env-chart { min-height: 90px; padding: 3px 5px; border: 1px solid #2e4438; border-radius: 5px; background: #101b18; }
+.env-chart svg { display: block; width: 100%; max-height: 128px; }
+.env-chart-grid { stroke: #52665a; stroke-opacity: .25; }
+.env-chart-line { stroke: var(--gold); stroke-width: 2.5; stroke-linejoin: round; fill: none; }
+.env-chart-point { fill: var(--gold); stroke: #1d2921; stroke-width: 2; }
+.env-chart-label { fill: #91a69a; font: 10px Consolas, monospace; }
+.env-samples { display: grid; gap: 6px; }
+.env-sample-labels, .env-sample-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 26px; gap: 8px; align-items: end; }
+.env-sample-labels { color: #91a59a; font-size: 9px; letter-spacing: .075em; }
+.env-sample-row .env-field-label { display: none; }
+.env-sensor-card > .env-action { align-self: flex-start; }
 #gutter { flex: 0 0 51px; min-height: 0; margin: 0; padding: 25px 14px 25px 0; text-align: right; background: #101a19; color: #62746c; font: 13px/1.9 "SFMono-Regular", Consolas, "Liberation Mono", monospace; overflow: hidden; user-select: none; border-right: 1px solid #22312d; }
 .code-input { position: relative; flex: 1; min-width: 0; min-height: 0; }
 #highlight, #source { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 25px 18px; font: 13px/1.9 "SFMono-Regular", Consolas, "Liberation Mono", monospace; tab-size: 4; white-space: pre; border: 0; }
@@ -198,6 +229,9 @@ footer strong { color: #efc261; }
   .actions { padding: 15px; }
   #engine-status { max-width: none; width: 100%; text-align: left; margin: 5px 0 0; }
   .side-section { padding: 19px; }
+  .env-group { padding: 12px; }
+  .env-sensor-fields { grid-template-columns: minmax(0,1fr) 73px; }
+  .env-sensor-fields .env-field:first-child { grid-column: 1 / -1; }
   .event-row { grid-template-columns: 72px 65px 1fr; gap: 7px; }
   .event-list { padding: 10px 18px; }
   .trace-header { padding: 20px; }

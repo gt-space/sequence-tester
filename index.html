@@ -30,9 +30,22 @@
           </div>
           <div id="editor-body" class="editor-body" data-view="sequence">
             <div id="sequence-pane" class="code-wrap" role="tabpanel" aria-labelledby="sequence-tab"><pre id="gutter" aria-hidden="true">1</pre><div class="code-input"><pre id="highlight" aria-hidden="true"></pre><textarea id="source" aria-label="Python sequence source" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div></div>
-            <div id="environment-pane" class="environment-pane" role="tabpanel" aria-labelledby="environment-tab"><div class="environment-label"><span>Valve & sensor inputs</span><span>JSON</span></div><textarea id="mapping" aria-label="Valve and sensor mapping JSON" spellcheck="false"></textarea></div>
+            <div id="environment-pane" class="environment-pane" role="tabpanel" aria-labelledby="environment-tab">
+              <div class="environment-label"><span>Simulation inputs</span><span>TEST ENVIRONMENT</span></div>
+              <div class="environment-scroll">
+                <section class="env-group" aria-label="Valves">
+                  <div class="env-heading"><h3>Valves</h3><button id="add-valve" class="env-add" type="button">+ Add valve</button></div>
+                  <div id="valve-list" class="env-valve-list"></div>
+                </section>
+                <section class="env-group" aria-label="Sensors">
+                  <div class="env-heading"><h3>Sensors</h3><button id="add-sensor" class="env-add" type="button">+ Add sensor</button></div>
+                  <div id="sensor-list" class="env-sensor-list"></div>
+                </section>
+              </div>
+              <input id="mapping" type="hidden" />
+            </div>
           </div>
-          <div class="editor-footer"><span id="editor-info">0 lines</span><span id="environment-info" hidden>Test Environment · JSON</span><span>⌘ / Ctrl + Enter</span></div>
+          <div class="editor-footer"><span id="editor-info">0 lines</span><span id="environment-info" hidden>Test Environment</span><span>⌘ / Ctrl + Enter</span></div>
           <div class="actions"><button id="validate" class="button secondary" type="button">Validate code</button><button id="simulate" class="button primary" type="button"><span>▶</span> Run simulation</button><span id="engine-status" role="status">Loading Python runtime…</span></div>
         </section>
 

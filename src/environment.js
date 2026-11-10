@@ -1,5 +1,6 @@
 const UNITS = ["psi", "V", "A", "lbf", "K", "unknown"];
 const SVG_NS = "http://www.w3.org/2000/svg";
+const tableKeys = count => Array.from({ length: 2 ** count }, (_, i) => i.toString(2).padStart(count, "0"));
 
 function node(tag, className, label) {
   const element = document.createElement(tag);
@@ -105,10 +106,69 @@ export function normalizeEnvironment(raw, fallback) {
     sensors: data.sensors.map(sensor => ({
       name: sensor?.name ?? "",
       unit: sensor?.unit ?? "unknown",
+      mode: sensor?.mode === "valve" ? "valve" : "time",
+      initial: sensor?.initial ?? 0,
+      min: sensor?.min ?? null,
+      max: sensor?.max ?? null,
+      valves: Array.isArray(sensor?.valves) ? [...sensor.valves] : [],
+      rates: sensor?.rates && typeof sensor.rates === "object" && !Array.isArray(sensor.rates) ? { ...sensor.rates } : {},
       interpolation: sensor?.interpolation ?? "step",
       samples: Array.isArray(sensor?.samples) ? sensor.samples.map(sample => ({ at: sample?.at ?? "", value: sample?.value ?? "" })) : [{ at: 0, value: sensor?.value ?? 0 }]
     }))
   };
+}
+
+// Reject malformed imports instead of silently replacing the current editor with defaults.
+export function parseEnvironmentFile(raw) {
+  let data;
+  try {
+    data = JSON.parse(raw.replace(/^\uFEFF/, ""));
+  } catch {
+    throw new Error("Invalid JSON. Choose a test environment .json file.");
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data) ||
+      !Array.isArray(data.valves) || !Array.isArray(data.sensors)) {
+    throw new Error('Environment JSON must contain "valves" and "sensors" arrays.');
+  }
+  if (data.valves.length > 100 || data.sensors.length > 100) {
+    throw new Error("Environment has too many valves or sensors (100 maximum each).");
+  }
+  for (const [index, valve] of data.valves.entries()) {
+    if (typeof valve === "string") continue; // Legacy exported configurations.
+    if (!valve || typeof valve !== "object" || Array.isArray(valve) ||
+        typeof valve.name !== "string" ||
+        (valve.initial !== undefined && !["OPEN", "CLOSED"].includes(valve.initial))) {
+      throw new Error(`Valve ${index + 1} must have a name and an OPEN/CLOSED initial state.`);
+    }
+  }
+  for (const [index, sensor] of data.sensors.entries()) {
+    if (!sensor || typeof sensor !== "object" || Array.isArray(sensor) || typeof sensor.name !== "string") {
+      throw new Error(`Sensor ${index + 1} must be an object with a name.`);
+    }
+    if (sensor.valves !== undefined &&
+        (!Array.isArray(sensor.valves) || sensor.valves.length > 4 ||
+          sensor.valves.some(name => typeof name !== "string"))) {
+      throw new Error(`Sensor ${index + 1} must reference at most four valve names.`);
+    }
+    if (sensor.samples !== undefined &&
+        (!Array.isArray(sensor.samples) || sensor.samples.length > 1000 ||
+          sensor.samples.some(sample => !sample || typeof sample !== "object" || Array.isArray(sample)))) {
+      throw new Error(`Sensor ${index + 1} has an invalid time profile.`);
+    }
+    if (sensor.rates !== undefined &&
+        (!sensor.rates || typeof sensor.rates !== "object" || Array.isArray(sensor.rates))) {
+      throw new Error(`Sensor ${index + 1} has an invalid valve truth table.`);
+    }
+  }
+  const normalized = normalizeEnvironment(data, data);
+  if (JSON.stringify(normalized).length > 100000) {
+    throw new Error("Environment is too large (100 KB maximum configuration).");
+  }
+  return normalized;
+}
+
+export function serializeEnvironmentFile(environment) {
+  return `${JSON.stringify(environment, null, 2)}\n`;
 }
 
 export function createEnvironmentEditor({ mapping, valveList, sensorList, initial, fallback, onChange }) {
@@ -132,7 +192,15 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
       const remove = action("×", () => { data.valves.splice(index, 1); renderValves(); save(); }, "env-remove");
       remove.setAttribute("aria-label", `Remove valve ${valve.name || index + 1}`);
       row.append(
-        field("Valve name", valve.name, value => { valve.name = value; save(); }),
+        field("Valve name", valve.name, value => {
+          const previous = valve.name;
+          valve.name = value;
+          for (const sensor of data.sensors) {
+            if (sensor.mode === "valve") sensor.valves = sensor.valves.map(name => name === previous ? value : name);
+          }
+          renderSensors();
+          save();
+        }),
         dropdown("Starting state", valve.initial, [["CLOSED", "Closed"], ["OPEN", "Open"]], value => { valve.initial = value; save(); }),
         remove
       );
@@ -159,7 +227,17 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
       toggle.append(node("span", "env-sensor-icon", "∿"));
       const title = node("span", "env-sensor-title");
       title.append(node("strong", "", sensor.name || "New sensor"));
-      title.append(node("small", "", `${sensor.samples.length} points · ${sensor.unit}`));
+      const subtitle = node("small");
+      title.append(subtitle);
+      const dynamic = sensor.mode === "valve";
+      const keys = tableKeys(sensor.valves.length);
+      const completed = keys.filter(key => sensor.rates[key] !== "" && sensor.rates[key] !== undefined && Number.isFinite(Number(sensor.rates[key]))).length;
+      const updateSubtitle = () => {
+        subtitle.textContent = dynamic ? `${completedCount()}/${keys.length} states · ${sensor.unit}/s` : `${sensor.samples.length} points · ${sensor.unit}`;
+        subtitle.classList.toggle("env-incomplete", dynamic && completedCount() !== keys.length);
+      };
+      const completedCount = () => keys.filter(key => sensor.rates[key] !== "" && sensor.rates[key] !== undefined && Number.isFinite(Number(sensor.rates[key]))).length;
+      updateSubtitle();
       toggle.append(title, node("span", "env-chevron", expanded ? "⌃" : "⌄"));
       heading.append(toggle);
       const removeSensor = action("×", () => { data.sensors.splice(index, 1); renderSensors(); save(); }, "env-remove");
@@ -175,7 +253,7 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
       });
       const unit = dropdown("Unit", sensor.unit, UNITS.map(value => [value, value]), value => {
         sensor.unit = value;
-        title.querySelector("small").textContent = `${sensor.samples.length} points · ${value}`;
+        renderSensors();
         save();
       });
       const interpolation = dropdown("Profile", sensor.interpolation, [["step", "Step / hold"], ["linear", "Linear"]], value => {
@@ -183,7 +261,13 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
         refreshChart();
         save();
       });
-      fields.append(name, unit, interpolation);
+      const mode = dropdown("Sensor behavior", sensor.mode, [["time", "Time profile"], ["valve", "Valve-driven"]], value => {
+        sensor.mode = value;
+        renderSensors();
+        save();
+      });
+      fields.append(name, unit, mode);
+      if (!dynamic) fields.append(interpolation);
 
       const graph = node("div", "env-chart");
       function refreshChart() { graph.replaceChildren(profileChart(sensor)); }
@@ -220,11 +304,85 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
       card.append(heading);
       if (expanded) {
         const details = node("div", "env-sensor-details");
-        details.append(fields, graph, samples, addPoint);
+        details.append(fields);
+        if (dynamic) {
+          const setup = node("div", "env-dynamic-setup");
+          setup.append(node("p", "env-sensor-hint", "Select the valves affecting this sensor. Every OPEN/CLOSED combination needs an explicit rate (enter 0 for no change)."));
+          const settings = node("div", "env-dynamic-settings");
+          settings.append(field(`Initial value (${sensor.unit})`, sensor.initial, value => {
+            sensor.initial = value === "" ? "" : Number(value);
+            save();
+          }, "number"));
+          for (const bound of ["min", "max"]) {
+            settings.append(field(`${bound === "min" ? "Minimum" : "Maximum"} (optional)`, sensor[bound] ?? "", value => {
+              sensor[bound] = value === "" ? null : Number(value);
+              save();
+            }, "number"));
+          }
+          setup.append(settings);
+          const selection = node("div", "env-influences");
+          selection.append(node("span", "env-field-label", "Influencing valves (up to 4)"));
+          const configured = data.valves.map(v => v.name).filter(v => v);
+          sensor.valves.forEach((valve, valveIndex) => {
+            const line = node("div", "env-influence-row");
+            const options = [["", "Select valve…"], ...configured.filter(v => v === valve || !sensor.valves.includes(v)).map(v => [v, v])];
+            line.append(dropdown(`Valve ${valveIndex + 1}`, valve, options, value => {
+              sensor.valves[valveIndex] = value;
+              sensor.rates = {};
+              renderSensors();
+              save();
+            }), action("×", () => {
+              sensor.valves.splice(valveIndex, 1);
+              sensor.rates = {};
+              renderSensors();
+              save();
+            }, "env-remove"));
+            selection.append(line);
+          });
+          const available = configured.filter(v => !sensor.valves.includes(v));
+          const addInfluence = action("+ Add valve", () => {
+            sensor.valves.push(available[0]);
+            sensor.rates = {};
+            renderSensors();
+            save();
+          });
+          addInfluence.disabled = sensor.valves.length >= 4 || !available.length;
+          selection.append(addInfluence);
+          setup.append(selection);
+          if (sensor.valves.length) {
+            const table = node("div", "env-truth-table");
+            const head = node("div", "env-truth-head");
+            const columns = `repeat(${sensor.valves.length}, minmax(65px, 1fr)) minmax(108px, 1.4fr)`;
+            head.style.gridTemplateColumns = columns;
+            for (const valve of sensor.valves) head.append(node("span", "", valve || "?"));
+            head.append(node("span", "", `RATE (${sensor.unit}/s)`));
+            table.append(head);
+            keys.forEach(key => {
+              const line = node("div", "env-truth-row");
+              line.style.gridTemplateColumns = columns;
+              for (const bit of key) line.append(node("span", `env-state ${bit === "1" ? "open" : "closed"}`, bit === "1" ? "OPEN" : "CLOSED"));
+              const current = sensor.rates[key];
+              line.append(field(`Rate for ${key}`, current ?? "", value => {
+                sensor.rates[key] = value === "" ? "" : Number(value);
+                const remaining = keys.filter(item => sensor.rates[item] !== "" && sensor.rates[item] !== undefined && Number.isFinite(Number(sensor.rates[item]))).length;
+                status.textContent = `${remaining}/${keys.length} combinations defined`;
+                status.classList.toggle("env-incomplete", remaining !== keys.length);
+                updateSubtitle();
+                save();
+              }, "number"));
+              table.append(line);
+            });
+            const status = node("p", "env-table-status", `${completed}/${keys.length} combinations defined`);
+            status.classList.toggle("env-incomplete", completed !== keys.length);
+            setup.append(table, status);
+          } else setup.append(node("p", "env-incomplete", "Select at least one valve to generate its truth table."));
+          details.append(setup);
+        } else details.append(graph, samples, addPoint);
         card.append(details);
       } else {
         const preview = node("div", "env-sensor-preview");
-        preview.append(graph);
+        if (dynamic) preview.append(node("div", "env-sensor-hint", `${sensor.valves.join(" + ") || "No valves selected"} · ${completed}/${keys.length} rates defined`));
+        else preview.append(graph);
         card.append(preview);
       }
       sensorList.append(card);
@@ -250,7 +408,7 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
       valveList.lastElementChild.querySelector("input")?.focus();
     },
     addSensor() {
-      const sensor = { name: "", unit: "psi", interpolation: "step", samples: [{ at: 0, value: 0 }] };
+      const sensor = { name: "", unit: "psi", mode: "time", initial: 0, min: null, max: null, valves: [], rates: {}, interpolation: "step", samples: [{ at: 0, value: 0 }] };
       data.sensors.push(sensor);
       expandedSensors.add(sensor);
       renderSensors();

@@ -1,5 +1,5 @@
 import { highlightPython } from "./highlight.js";
-import { createEnvironmentEditor } from "./environment.js";
+import { createEnvironmentEditor, parseEnvironmentFile, serializeEnvironmentFile } from "./environment.js";
 import { createTimelineView } from "./timeline.js";
 
 const EXAMPLES = {
@@ -9,6 +9,7 @@ const EXAMPLES = {
   abort: `# Abort triggers when the configured tank pressure exceeds 250 psi\ncreate_abort_stage(\n    "PRESSURIZATION",\n    "tank_pt > 250*psi",\n    {press_valve: (CLOSED, 500), vent_valve: (OPEN, 1000)}\n)\nset_abort_stage("PRESSURIZATION")\npress_valve.open()\nwait_for(5*s)\nprint("Only reached if the abort condition never triggers")`,
   abort_two: `# Adapted from YJSP Notion's GROUND and FILLING examples.\n# Demonstration thresholds only; not approved operational limits.\n# Safing timers are integer MILLISECONDS in current Luna.\ncreate_abort_stage(\n    "GROUND",\n    "PT.read() > 50*psi",\n    {press_valve: (CLOSED, 0), vent_valve: (OPEN, 0)}\n)\ncreate_abort_stage(\n    "FILLING",\n    "load_cell.read() > 40*lbf",\n    {press_valve: (CLOSED, 5000), vent_valve: (OPEN, 0)}\n)\nset_abort_stage("GROUND")\nwait_for(1*s)\nset_abort_stage("FILLING")\npress_valve.open()\nwait_for(5*s)\nprint("No abort triggered")`,
   vespula_abort: `# Historical Vespula abort sequence excerpt from YJSP Notion.\n# Demonstration only; this is NOT an approved live abort procedure.\nimport time\nfmv_time = 0.06\nomv_time = 0.125\nlox_close_lead = 0.1\nlox_close_wait = omv_time + lox_close_lead - fmv_time\nwait_timing = 5  # ms\n\nOBB.close()\nFBB.close()\nOSWV.close()\nFSWV.close()\nOMV.close()\n\nstart_time = time.time()\nwhile time.time() < start_time + lox_close_wait:\n    wait_for(wait_timing*ms)\n\nFMV.close()\nOVNT.open()\nFVNT.open()\nprint("Historical abort excerpt finished")`,
+  feedback: `# Idealized pressure feedback demo (not a physical tank model)\nCISO.open()\nwait_until(lambda: CTPT.read() >= 340*psi, 5*s)\nCISO.close()\nCMV.open()\nwait_until(lambda: CTPT.read() <= 250*psi, 5*s)\nCMV.close()\nprint("Pressure-control sequence complete")`,
   import: `press_valve.open()\ntime.sleep(1)\npress_valve.close()`,
   api: `tank_pt.open()\npress_valve.open()\nwait_for(500 * ms)\npress_valve.close()`
 };
@@ -21,8 +22,8 @@ const DEFAULT_MAPPING = {
 const VESPULA_MAPPING = {
   valves: ["FSWV", "OSWV", "FBB", "OBB"],
   sensors: [
-    { name: "FTPT", unit: "psi", samples: [{ at: 0, value: 400 }, { at: 1, value: 420 }, { at: 5, value: 405 }, { at: 10, value: 421 }] },
-    { name: "OTPT", unit: "psi", samples: [{ at: 0, value: 330 }, { at: 1, value: 360 }, { at: 5, value: 340 }, { at: 10, value: 361 }] }
+    { name: "FTPT", unit: "psi", mode: "valve", initial: 400, valves: ["FBB"], rates: { "0": -2, "1": 30 }, min: 0, max: 500 },
+    { name: "OTPT", unit: "psi", mode: "valve", initial: 330, valves: ["OBB"], rates: { "0": -2, "1": 30 }, min: 0, max: 500 }
   ]
 };
 
@@ -52,6 +53,14 @@ const EXAMPLE_MAPPINGS = {
   vespula_abort: VESPULA_ABORT_MAPPING
 };
 
+const FEEDBACK_MAPPING = {
+  valves: ["CISO", "CMV"],
+  sensors: [{ name: "CTPT", unit: "psi", mode: "valve", initial: 200,
+    valves: ["CISO", "CMV"], rates: { "00": 0, "01": -25, "10": 40, "11": 0 }, min: 0, max: 500 }]
+};
+
+EXAMPLE_MAPPINGS.feedback = FEEDBACK_MAPPING;
+
 const $ = id => document.getElementById(id);
 const source = $("source");
 const mapping = $("mapping");
@@ -61,10 +70,52 @@ let ready = false;
 let currentId = 0;
 let pending = null;
 let executionTimeout;
+let elapsedTicker;
 let startupTimeout;
 let running = false;
 let startupPhase = "Loading Python runtime…";
 let activeSourceLine = 0;
+let flightRun = null;
+
+const clockSpeed = $("clock-speed");
+const timeLimit = $("time-limit");
+clockSpeed.value = ["1", "5"].includes(localStorage.getItem("yjsp-clock-speed"))
+  ? localStorage.getItem("yjsp-clock-speed") : "5";
+timeLimit.value = localStorage.getItem("yjsp-time-limit") ?? "600";
+
+function updateFlight(simulated, wall, phase = "running") {
+  if (!flightRun) return;
+  const { limit, speed } = flightRun;
+  const seconds = Math.max(0, simulated);
+  const progress = $("flight-progress");
+  progress.dataset.phase = phase;
+  $("flight-phase").textContent = phase === "running" ? "SIMULATION IN PROGRESS" :
+    phase === "complete" ? "SEQUENCE FINISHED" : "SIMULATION STOPPED";
+  $("flight-elapsed").textContent = `T+ ${seconds.toFixed(1)}s`;
+  $("flight-wall").textContent = `${Math.max(0, wall).toFixed(1)}s wall time · ${speed}× speed`;
+  $("flight-limit").textContent = `${limit}s simulation limit`;
+}
+
+function startFlight(request) {
+  flightRun = { speed: request.options.speed, limit: request.options.max_duration, started: performance.now() };
+  $("flight-progress").hidden = false;
+  updateFlight(0, 0);
+}
+
+function finishFlight(result) {
+  if (!flightRun) return;
+  const elapsed = (performance.now() - flightRun.started) / 1000;
+  const simulated = typeof result?.virtual_time === "number" ? result.virtual_time : elapsed * flightRun.speed;
+  updateFlight(simulated, result?.timing?.wall_seconds ?? elapsed,
+    result?.checks?.runtime === "pass" ? "complete" : "stopped");
+  flightRun = null;
+}
+
+function clearExecutionTimers() {
+  clearTimeout(executionTimeout);
+  clearInterval(elapsedTicker);
+  elapsedTicker = null;
+}
 
 function updateLineFocus() {
   const indicator = $("line-focus");
@@ -83,13 +134,16 @@ function jumpToSourceLine(line, eventIndex = -1) {
   if (line > lines.length) return;
   const offset = lines.slice(0, line - 1).reduce((sum, text) => sum + text.length + 1, 0);
   const lineHeight = parseFloat(getComputedStyle(source).lineHeight) || 24.7;
-  source.focus();
+  const padding = parseFloat(getComputedStyle(source).paddingTop) || 25;
+  source.focus({ preventScroll: true });
   source.setSelectionRange(offset, offset + lines[line - 1].length);
-  source.scrollTop = Math.max(0, (line - 4) * lineHeight);
+  source.scrollTop = 0;
   source.scrollLeft = 0;
-  $("gutter").scrollTop = source.scrollTop;
-  $("highlight").scrollTop = source.scrollTop;
+  $("gutter").scrollTop = 0;
+  $("highlight").scrollTop = 0;
   $("highlight").scrollLeft = 0;
+  const lineTop = source.getBoundingClientRect().top + window.scrollY + padding + (line - 1) * lineHeight;
+  window.scrollTo({ top: Math.max(0, lineTop - Math.min(180, window.innerHeight * 0.25)), behavior: "smooth" });
   activeSourceLine = line;
   updateLineFocus();
   document.querySelectorAll(".event-row").forEach(row => row.classList.toggle("is-selected", Number(row.dataset.line) === line));
@@ -116,7 +170,7 @@ function setStatus(message, level = "normal") {
 function makeWorker() {
   if (worker) worker.terminate();
   clearTimeout(startupTimeout);
-  clearTimeout(executionTimeout);
+  clearExecutionTimers();
   const workerUrl = new URL("./worker.js", import.meta.url);
   workerUrl.search = new URL(import.meta.url).search;
   worker = new Worker(workerUrl, { type: "module" });
@@ -145,9 +199,10 @@ function makeWorker() {
       worker = null;
     } else if (data.type === "result") {
       if (data.id !== currentId) return;
-      clearTimeout(executionTimeout);
+      clearExecutionTimers();
       running = false;
       pending = null;
+      finishFlight(data.result);
       render(data.result);
       const issues = data.result.diagnostics || [];
       const errors = issues.filter(item => item.severity === "error").length;
@@ -157,15 +212,18 @@ function makeWorker() {
       errors ? "error" : warnings ? "warning" : "success");
     } else if (data.type === "failure") {
       if (data.id !== currentId) return;
-      clearTimeout(executionTimeout);
+      clearExecutionTimers();
       running = false;
       pending = null;
+      finishFlight(null);
       setStatus(`Execution failed: ${data.message}`, "error");
     }
   };
   worker.onerror = event => {
     clearTimeout(startupTimeout);
-    clearTimeout(executionTimeout);
+    clearExecutionTimers();
+    finishFlight(null);
+    running = false;
     setStatus(`Runtime error: ${event.message}`, "error");
     worker.terminate();
     worker = null;
@@ -175,14 +233,34 @@ function makeWorker() {
 function dispatch(request) {
   pending = null;
   running = true;
+  if (request.mode !== "simulate") {
+    flightRun = null;
+    $("flight-progress").hidden = true;
+  }
   setStatus(request.mode === "simulate" ? "Simulating…" : "Validating…");
   worker.postMessage(request);
+  const realtime = request.mode === "simulate" && request.options.clock_mode === "realtime";
+  const wallLimit = realtime ? (request.options.max_duration / request.options.speed) * 1000 + 15000 : 15000;
+  const startWall = performance.now();
+  if (request.mode === "simulate") {
+    startFlight(request);
+    elapsedTicker = setInterval(() => {
+      const elapsed = (performance.now() - startWall) / 1000;
+      const time = realtime ? elapsed * request.options.speed : 0;
+      updateFlight(time, elapsed);
+      setStatus(realtime
+        ? `Simulating ${request.options.speed}× · ~${time.toFixed(1)}s simulated / ${elapsed.toFixed(1)}s elapsed`
+        : `Deterministic simulation · ${elapsed.toFixed(1)}s elapsed`);
+    }, 200);
+  }
   executionTimeout = setTimeout(() => {
-    render({ checks: { syntax: "pass", names: "not_run", api: "not_run", runtime: "fail" }, diagnostics: [{ stage: "runtime", severity: "error", message: "Execution exceeded the 5-second wall-clock limit", line: 0 }], events: [], virtual_time: 0, stdout: "" });
+    const seconds = wallLimit / 1000;
+    render({ checks: { syntax: "pass", names: "not_run", api: "not_run", runtime: "fail" }, diagnostics: [{ stage: "runtime", severity: "error", message: `Execution exceeded the ${seconds.toFixed(1)}s wall-clock watchdog limit; check for an infinite loop or stalled condition`, line: 0 }], events: [], virtual_time: null, stdout: "" });
+    finishFlight(null);
     running = false;
     makeWorker();
-    setStatus("Execution stopped after 5 seconds. Restarting Python runtime…", "error");
-  }, 5000);
+    setStatus(`Execution stopped after ${seconds.toFixed(1)}s. Restarting Python runtime…`, "error");
+  }, wallLimit);
 }
 
 function run(mode) {
@@ -190,7 +268,19 @@ function run(mode) {
     setStatus("Sequence or configuration too large", "error");
     return;
   }
-  const request = { id: ++currentId, mode, source: source.value, mapping: mapping.value };
+  const maxDuration = Number(timeLimit.value);
+  const speed = Number(clockSpeed.value);
+  if (mode === "simulate" && ![1, 5].includes(speed)) {
+    setStatus("Simulation speed must be 1× or 5×", "error");
+    return;
+  }
+  if (mode === "simulate" && (!Number.isFinite(maxDuration) || maxDuration < 1 || maxDuration > 3600)) {
+    setStatus("Simulated-time limit must be between 1 and 3600 seconds", "error");
+    return;
+  }
+  const options = { clock_mode: "realtime", speed,
+    max_duration: mode === "simulate" ? maxDuration : 600 };
+  const request = { id: ++currentId, mode, source: source.value, mapping: mapping.value, options };
   localStorage.setItem("yjsp-sequence-source", source.value);
   localStorage.setItem("yjsp-sequence-mapping", mapping.value);
   if (!worker) makeWorker();
@@ -206,6 +296,8 @@ function run(mode) {
 function invalidateResults() {
   currentId++;
   pending = null;
+  flightRun = null;
+  $("flight-progress").hidden = true;
   if (running) {
     running = false;
     makeWorker();
@@ -221,6 +313,8 @@ function invalidateResults() {
   $("diagnostics").className = "empty-state";
   $("diagnostics").textContent = "Not checked";
   $("virtual-time").textContent = "—";
+  $("timing-details").hidden = true;
+  $("timing-details").textContent = "";
   timeline.clear();
   $("trace-placeholder").hidden = false;
   $("event-details").hidden = true;
@@ -271,6 +365,20 @@ function render(result) {
     list.append(row);
   }
   $("virtual-time").textContent = typeof result.virtual_time === "number" ? `${result.virtual_time.toFixed(3)} s` : "—";
+  const timing = result.timing;
+  const timingDetails = $("timing-details");
+  timingDetails.hidden = !timing;
+  timingDetails.replaceChildren();
+  if (timing) {
+    const pieces = [timing.mode === "realtime" ? `Continuous · ${timing.requested_speed}× target` : "Deterministic · instant advance",
+      `${timing.wall_seconds.toFixed(3)}s wall time`,
+      `${timing.simulated_limit_seconds}s simulation limit`];
+    if (timing.mode === "realtime") {
+      pieces.splice(2, 0, `${timing.actual_speed?.toFixed(2) ?? "—"}× effective`,
+        `${timing.wait_count} waits · max ${(timing.max_wait_overshoot_ms / timing.requested_speed).toFixed(2)}ms wall overshoot`);
+    }
+    timingDetails.textContent = pieces.join("   ·   ");
+  }
   if (result.simulation) timeline.load(result);
   else timeline.clear();
   $("trace-placeholder").hidden = Boolean(result.simulation);
@@ -348,6 +456,7 @@ function updateLayout() {
   $("split-toggle").setAttribute("aria-pressed", String(splitView));
   $("split-toggle").textContent = splitView ? "▣ Single view" : "▥ Split view";
   $("source-actions").hidden = !splitView && currentTab === "environment";
+  $("environment-actions").hidden = !splitView && currentTab === "sequence";
   $("editor-info").hidden = !splitView && currentTab === "environment";
   $("environment-info").hidden = splitView || currentTab !== "environment";
 }
@@ -381,6 +490,13 @@ source.addEventListener("keydown", event => {
 });
 $("validate").onclick = () => run("validate");
 $("simulate").onclick = () => run("simulate");
+for (const control of [clockSpeed, timeLimit]) {
+  control.addEventListener("change", () => {
+    localStorage.setItem("yjsp-clock-speed", clockSpeed.value);
+    localStorage.setItem("yjsp-time-limit", timeLimit.value);
+    invalidateResults();
+  });
+}
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
   environment.load(EXAMPLE_MAPPINGS[button.dataset.example] || DEFAULT_MAPPING);
@@ -402,12 +518,34 @@ $("file-input").onchange = async event => {
   updateEditor();
   invalidateResults();
 };
-$("download").onclick = () => {
-  const url = URL.createObjectURL(new Blob([source.value], { type: "text/x-python" }));
+function downloadFile(contents, filename, mimeType) {
+  const url = URL.createObjectURL(new Blob([contents], { type: mimeType }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = "sequence.py";
+  link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$("download").onclick = () => downloadFile(source.value, "sequence.py", "text/x-python");
+$("environment-download").onclick = () => {
+  downloadFile(serializeEnvironmentFile(JSON.parse(mapping.value)), "test-environment.json", "application/json");
+  setStatus("Test environment exported as JSON", "success");
+};
+$("environment-upload").onclick = () => $("environment-file-input").click();
+$("environment-file-input").onchange = async event => {
+  const file = event.target.files?.[0];
+  event.target.value = ""; // Selecting the same file again must still trigger import.
+  if (!file) return;
+  if (file.size > 200000) {
+    setStatus("Environment file too large (200 KB maximum)", "error");
+    return;
+  }
+  try {
+    const imported = parseEnvironmentFile(await file.text());
+    environment.load(imported);
+    setStatus(`Loaded ${file.name} · revalidate to check the environment`, "success");
+  } catch (error) {
+    setStatus(`Environment not imported: ${error.message}`, "error");
+  }
 };
 makeWorker();

@@ -1,5 +1,6 @@
 import json
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -15,10 +16,20 @@ MAPPING = {
     }],
 }
 
+DRIVEN = {
+    "valves": ["CISO", "CMV"],
+    "sensors": [{
+        "name": "CTPT", "unit": "psi", "mode": "valve", "initial": 200,
+        "valves": ["CISO", "CMV"],
+        "rates": {"00": 0, "01": -25, "10": 40, "11": 0},
+        "min": 0, "max": 500,
+    }],
+}
+
 
 class EngineTests(unittest.TestCase):
-    def check(self, source, execute=False, mapping=MAPPING):
-        return run_sequence(source, json.dumps(mapping), execute)
+    def check(self, source, execute=False, mapping=MAPPING, options=None):
+        return run_sequence(source, json.dumps(mapping), execute, options)
 
     def test_syntax_error(self):
         result = self.check("if True\n    pass")
@@ -113,6 +124,8 @@ class EngineTests(unittest.TestCase):
         result = self.check("wait_until(lambda: tank_pt.read() > 500*psi, 1*s)", True)
         self.assertEqual(result["checks"]["runtime"], "pass")
         self.assertTrue(any(event["kind"] == "timeout" for event in result["events"]))
+        self.assertTrue(any(item["severity"] == "warning" and "wait_until() timed out" in item["message"]
+                            for item in result["diagnostics"]))
 
     def test_wait_until_rejects_invalid_timeout(self):
         result = self.check("wait_until(lambda: False, 1)", True)
@@ -286,6 +299,25 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(any("ABORT CONDITION NEVER TRIGGERED: 'early'" in d["message"]
                             for d in result["diagnostics"]))
 
+    def test_valve_driven_sensor_triggers_abort_with_continuous_clock(self):
+        source = ("create_abort_stage('rising', 'CTPT.read() > 210*psi', "
+                  "{CISO: (CLOSED, 200)})\n"
+                  "set_abort_stage('rising')\n"
+                  "CISO.open()\n"
+                  "wait_for(1*s)\n"
+                  "print('should not run')")
+        result = self.check(source, True, mapping=DRIVEN,
+                            options={"clock_mode": "realtime", "speed": 5, "max_duration": 3})
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        abort = next(event for event in result["events"] if event["kind"] == "abort")
+        safe = next(event for event in result["events"] if event["kind"] == "abort_safe")
+        self.assertGreater(abort["time"], 0.25)
+        self.assertLess(abort["time"], 0.45)
+        self.assertAlmostEqual(safe["time"] - abort["time"], 0.2, places=2)
+        self.assertEqual(result["valves"]["CISO"], "CLOSED")
+        self.assertEqual(result["stdout"], "")
+        self.assertEqual(result["timing"]["mode"], "realtime")
+
     def test_abort_stage_defined_but_not_activated_warning(self):
         result = self.check("create_abort_stage('safe', 'True', {})\nwait_for(1*s)", True)
         self.assertTrue(any("ABORT STAGE NOT ACTIVATED" in d["message"]
@@ -302,6 +334,156 @@ class EngineTests(unittest.TestCase):
                   "set_abort_stage('safe')\nwait_for(1*s)")
         result = self.check(source, True)
         self.assertEqual(result["simulation"]["sensor_read_lines"]["tank_pt"], [1])
+    def test_valve_driven_sensor_follows_all_four_states(self):
+        source = """assert CTPT.read() == 200*psi
+CISO.open()
+wait_for(2*s)
+assert CTPT.read() == 280*psi
+CMV.open()
+wait_for(1*s)
+assert CTPT.read() == 280*psi
+CISO.close()
+wait_for(2*s)
+assert CTPT.read() == 230*psi
+CMV.close()
+wait_for(1*s)
+assert CTPT.read() == 230*psi"""
+        result = self.check(source, True, mapping=DRIVEN)
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertEqual(result["simulation"]["sensors"]["CTPT"]["samples"], [
+            {"at": 0, "value": 200}, {"at": 2.0, "value": 280},
+            {"at": 3.0, "value": 280}, {"at": 5.0, "value": 230},
+            {"at": 6.0, "value": 230},
+        ])
+
+    def test_valve_driven_pressure_control_loop(self):
+        source = """CISO.open()
+while CTPT.read() < 340*psi:
+    wait_for(100*ms)
+CISO.close()
+assert CTPT.read() >= 340*psi
+assert CTPT.read() < 345*psi"""
+        result = self.check(source, True, mapping=DRIVEN)
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertLess(result["virtual_time"], 4)
+        self.assertEqual(result["valves"]["CISO"], "CLOSED")
+
+    def test_incomplete_truth_table_rejected_in_validation(self):
+        for bad in ({"00": 0, "01": -25, "10": 40}, {"00": 0, "01": -25, "10": 40, "11": ""}):
+            mapping = {**DRIVEN, "sensors": [{**DRIVEN["sensors"][0], "rates": bad}]}
+            result = self.check("print(CTPT.read())", True, mapping=mapping)
+            self.assertEqual(result["checks"]["api"], "fail")
+
+    def test_valve_driven_rejects_unknown_or_duplicate_valves(self):
+        for valves in (["CISO", "missing"], ["CISO", "CISO"]):
+            mapping = {**DRIVEN, "sensors": [{**DRIVEN["sensors"][0], "valves": valves}]}
+            result = self.check("print(CTPT.read())", mapping=mapping)
+            self.assertEqual(result["checks"]["api"], "fail")
+
+    def test_valve_driven_rejects_invalid_bounds_and_rate(self):
+        originals = DRIVEN["sensors"][0]
+        for changes in ({"min": 300}, {"min": 600, "max": 500}, {"rates": {**originals["rates"], "11": float("nan")}}):
+            mapping = {**DRIVEN, "sensors": [{**originals, **changes}]}
+            result = self.check("print(CTPT.read())", mapping=mapping)
+            self.assertEqual(result["checks"]["api"], "fail")
+
+    def test_valve_driven_clamps_at_bound_without_inaccurate_plot(self):
+        mapping = {**DRIVEN, "sensors": [{**DRIVEN["sensors"][0], "max": 250}]}
+        result = self.check("CISO.open()\nwait_for(5*s)\nassert CTPT.read() == 250*psi", True, mapping=mapping)
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertEqual(result["simulation"]["sensors"]["CTPT"]["samples"], [
+            {"at": 0, "value": 200}, {"at": 1.25, "value": 250}, {"at": 5.0, "value": 250},
+        ])
+
+    def test_continuous_clock_advances_without_explicit_wait(self):
+        source = """CISO.open()
+while CTPT.read() < 210*psi:
+    pass
+CISO.close()
+print('done')"""
+        start = time.perf_counter()
+        result = self.check(source, True, mapping=DRIVEN,
+                            options={"clock_mode": "realtime", "speed": 5, "max_duration": 5})
+        elapsed = time.perf_counter() - start
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertGreaterEqual(result["virtual_time"], 0.25)
+        self.assertLess(result["virtual_time"], 0.7)
+        self.assertGreaterEqual(elapsed, 0.045)
+        self.assertEqual(result["valves"]["CISO"], "CLOSED")
+        self.assertEqual(result["stdout"], "done\n")
+        self.assertEqual(result["timing"]["requested_speed"], 5)
+
+    def test_continuous_wait_and_wall_elapsed_time(self):
+        source = """import time
+start = time.time()
+monotonic_start = time.monotonic()
+time.sleep(0.2)
+assert 0.19 <= time.time() - start <= 0.5
+assert 0.19 <= time.monotonic() - monotonic_start <= 0.5
+assert time.perf_counter() >= monotonic_start"""
+        result = self.check(source, True, options={"clock_mode": "realtime", "speed": 5, "max_duration": 5})
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertGreaterEqual(result["timing"]["wait_count"], 1)
+        self.assertGreaterEqual(result["virtual_time"], 0.2)
+
+    def test_continuous_pressure_loop_switches_from_fill_to_vent(self):
+        source = """CISO.open()
+while CTPT.read() < 220*psi:
+    pass
+CISO.close()
+CMV.open()
+while CTPT.read() > 210*psi:
+    pass
+CMV.close()"""
+        result = self.check(source, True, mapping=DRIVEN,
+                            options={"clock_mode": "realtime", "speed": 5, "max_duration": 5})
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertEqual([event["detail"] for event in result["events"]],
+                         ["OPEN", "CLOSED", "OPEN", "CLOSED"])
+        self.assertAlmostEqual(result["virtual_time"], 0.9, delta=0.3)
+        sensor_samples = result["simulation"]["sensors"]["CTPT"]["samples"]
+        self.assertGreaterEqual(max(sample["value"] for sample in sensor_samples), 220)
+        self.assertLessEqual(sensor_samples[-1]["value"], 210)
+
+    def test_continuous_wait_until_timeout_preserves_luna_semantics(self):
+        result = self.check("wait_until(lambda: tank_pt.read() > 500*psi, 200*ms)", True,
+                            options={"clock_mode": "realtime", "speed": 5, "max_duration": 2})
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertTrue(any(event["kind"] == "timeout" for event in result["events"]))
+        self.assertGreaterEqual(result["virtual_time"], 0.2)
+
+    def test_deterministic_mode_remains_instant_and_repeatable(self):
+        result = self.check("import time\ntime.sleep(20)\nprint(time.monotonic())", True,
+                            options={"clock_mode": "deterministic", "speed": 5, "max_duration": 40})
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertEqual(result["virtual_time"], 20)
+        self.assertEqual(result["stdout"], "20.0\n")
+        self.assertEqual(result["timing"]["mode"], "deterministic")
+
+    def test_continuous_stalled_condition_reports_sensor_state(self):
+        source = """CISO.open()
+while CTPT.read() < 300*psi:
+    pass"""
+        result = self.check(source, True, mapping=DRIVEN,
+                            options={"clock_mode": "realtime", "speed": 5, "max_duration": 1})
+        self.assertEqual(result["checks"]["runtime"], "fail")
+        self.assertIn("SimulationLimit", result["diagnostics"][-1]["message"])
+        self.assertIn("last CTPT=", result["diagnostics"][-1]["message"])
+        self.assertIn("CISO=OPEN", result["diagnostics"][-1]["message"])
+
+    def test_invalid_clock_options_are_diagnosed(self):
+        for options in ({"clock_mode": "unknown"}, {"speed": 0}, {"speed": 10},
+                        {"speed": 20}, {"speed": True}, {"max_duration": 0}):
+            result = self.check("print('hello')", True, options=options)
+            self.assertEqual(result["checks"]["runtime"], "fail")
+            self.assertIn("Invalid simulation settings", result["diagnostics"][-1]["message"])
+
+    def test_one_x_simulation_speed_is_supported(self):
+        result = self.check("wait_for(20*ms)", True,
+                            options={"clock_mode": "realtime", "speed": 1, "max_duration": 2})
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertGreaterEqual(result["virtual_time"], 0.02)
+        self.assertEqual(result["timing"]["requested_speed"], 1)
 
 
 if __name__ == "__main__":

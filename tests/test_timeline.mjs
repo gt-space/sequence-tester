@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sensorValueAt, valveStateAt, sampleScale, abortStatusAt } from '../src/timeline.js';
+import { sensorValueAt, valveStateAt, sensorRateAt, sampleScale, abortStatusAt } from '../src/timeline.js';
 
 test('step profile holds each reading until the next time point', () => {
   const sensor = { interpolation: 'step', samples: [{at:0,value:100}, {at:2,value:200}] };
@@ -46,4 +46,18 @@ test('abort stage and trigger state follow the same virtual time cursors', () =>
   assert.deepEqual(abortStatusAt(events, 1), { stage: 'DEFAULT', aborted: false });
   assert.deepEqual(abortStatusAt(events, 3), { stage: 'press', aborted: false });
   assert.deepEqual(abortStatusAt(events, 4.1), { stage: 'press', aborted: true });
+});
+
+test('valve-driven cursor readout selects the active truth-table rate', () => {
+  const sensor = { mode: 'valve', valves: ['CISO', 'CMV'], rates: {'00':0,'01':-25,'10':40,'11':0} };
+  const initial = { CISO:'CLOSED', CMV:'CLOSED' };
+  const events = [
+    {time:1,kind:'valve',target:'CISO',detail:'OPEN'},
+    {time:2,kind:'valve',target:'CMV',detail:'OPEN'},
+    {time:3,kind:'valve',target:'CISO',detail:'CLOSED'}
+  ];
+  assert.deepEqual(sensorRateAt(sensor,initial,events,0),{key:'00',rate:0});
+  assert.deepEqual(sensorRateAt(sensor,initial,events,1.5),{key:'10',rate:40});
+  assert.deepEqual(sensorRateAt(sensor,initial,events,2.5),{key:'11',rate:0});
+  assert.deepEqual(sensorRateAt(sensor,initial,events,3.5),{key:'01',rate:-25});
 });

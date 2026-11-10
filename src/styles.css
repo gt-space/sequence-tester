@@ -237,6 +237,7 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .timeline-empty-label { fill: #8ca49a; font: 14px sans-serif; }
 .timeline-valve-line { stroke: #e0a500; stroke-width: 3.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .timeline-sensor-line { stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.timeline-overlay { pointer-events: none; }
 .timeline-event-dot { fill: #e0a500; fill-opacity: .75; stroke: #243126; stroke-width: 3; cursor: pointer; }
 .timeline-event-dot:hover, .timeline-event-dot.selected { fill: #fff4b3; stroke: #e0a500; }
 .timeline-source-link { fill: #8bcfe1; font: 11px Consolas, monospace; cursor: pointer; text-decoration: underline; }

@@ -1,8 +1,8 @@
 const EXAMPLES = {
-  tank: `# Tank press demonstration with simulated sensor data\npress_valve.open()\nwait_until(lambda: tank_pt.read() >= 300 * psi, 5 * s)\npress_valve.close()\nprint("Tank press sequence finished")`,
-  pulse: `# Timed valve operation\npress_valve.open()\nwait_for(500 * ms)\npress_valve.close()\nwait_for(250 * ms)\nvent_valve.open()\nwait_for(250 * ms)\nvent_valve.close()`,
-  import: `# Missing import is detected before execution\npress_valve.open()\ntime.sleep(1)\npress_valve.close()`,
-  api: `# A sensor cannot be opened like a valve\ntank_pt.open()\npress_valve.open()\nwait_for(500 * ms)\npress_valve.close()`
+  tank: `press_valve.open()\nwait_until(lambda: tank_pt.read() >= 300 * psi, 5 * s)\npress_valve.close()\nprint("Tank press sequence finished")`,
+  pulse: `press_valve.open()\nwait_for(500 * ms)\npress_valve.close()\nwait_for(250 * ms)\nvent_valve.open()\nwait_for(250 * ms)\nvent_valve.close()`,
+  import: `press_valve.open()\ntime.sleep(1)\npress_valve.close()`,
+  api: `tank_pt.open()\npress_valve.open()\nwait_for(500 * ms)\npress_valve.close()`
 };
 
 const DEFAULT_MAPPING = {
@@ -113,8 +113,36 @@ function run(mode) {
   else { pending = request; setStatus("Waiting for Python runtime…"); }
 }
 
+function invalidateResults() {
+  currentId++;
+  pending = null;
+  if (running) {
+    running = false;
+    makeWorker();
+  }
+  for (const el of document.querySelectorAll("[data-check]")) {
+    el.dataset.state = "stale";
+    el.querySelector(".check-icon").textContent = "↻";
+    el.querySelector(".check-status").textContent = "Not checked";
+  }
+  $("validation-state").textContent = "MODIFIED";
+  $("validation-state").dataset.state = "stale";
+  $("issue-count").textContent = "—";
+  $("diagnostics").className = "empty-state";
+  $("diagnostics").textContent = "Not checked";
+  $("virtual-time").textContent = "—";
+  $("trace").className = "trace-empty";
+  $("trace").textContent = "No simulation output";
+  $("stdout-box").hidden = true;
+  $("stdout").textContent = "";
+  if (ready) setStatus("Edited · revalidate");
+}
+
 function render(result) {
   const stages = result.checks || {};
+  const failed = Object.values(stages).includes("fail");
+  $("validation-state").textContent = failed ? "ISSUES FOUND" : "CHECKED";
+  $("validation-state").dataset.state = failed ? "fail" : "pass";
   for (const [name, state] of Object.entries(stages)) {
     const el = document.querySelector(`[data-check="${name}"]`);
     if (!el) continue;
@@ -129,7 +157,7 @@ function render(result) {
   if (!diagnostics.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state good";
-    empty.textContent = "No diagnostics reported for these checks.";
+    empty.textContent = "No issues";
     list.append(empty);
   }
   for (const item of diagnostics) {
@@ -155,7 +183,7 @@ function render(result) {
   const events = result.events || [];
   if (!events.length) {
     trace.className = "trace-empty";
-    trace.textContent = stages.runtime === "pass" ? "Sequence finished without issuing hardware commands." : "Run a successful simulation to see the event trace.";
+    trace.textContent = stages.runtime === "pass" ? "No hardware events" : "No simulation output";
   } else {
     trace.className = "event-list";
     for (const event of events) {
@@ -187,7 +215,7 @@ function updateEditor() {
 source.value = localStorage.getItem("yjsp-sequence-source") ?? EXAMPLES.tank;
 mapping.value = localStorage.getItem("yjsp-sequence-mapping") ?? JSON.stringify(DEFAULT_MAPPING, null, 2);
 updateEditor();
-source.addEventListener("input", updateEditor);
+source.addEventListener("input", () => { updateEditor(); invalidateResults(); });
 source.addEventListener("scroll", () => { $("gutter").scrollTop = source.scrollTop; });
 source.addEventListener("keydown", event => {
   if (event.key === "Tab") {
@@ -195,18 +223,20 @@ source.addEventListener("keydown", event => {
     const a = source.selectionStart;
     source.setRangeText("    ", a, source.selectionEnd, "end");
     updateEditor();
+    invalidateResults();
   }
   if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
     run("simulate");
   }
 });
-mapping.addEventListener("input", () => localStorage.setItem("yjsp-sequence-mapping", mapping.value));
+mapping.addEventListener("input", () => { localStorage.setItem("yjsp-sequence-mapping", mapping.value); invalidateResults(); });
 $("validate").onclick = () => run("validate");
 $("simulate").onclick = () => run("simulate");
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
   updateEditor();
+  invalidateResults();
   source.focus();
 });
 $("upload").onclick = () => $("file-input").click();
@@ -216,6 +246,7 @@ $("file-input").onchange = async event => {
   if (file.size > 200000) { setStatus("File too large (200 KB maximum)", "error"); return; }
   source.value = await file.text();
   updateEditor();
+  invalidateResults();
 };
 $("download").onclick = () => {
   const url = URL.createObjectURL(new Blob([source.value], { type: "text/x-python" }));

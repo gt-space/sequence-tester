@@ -60,17 +60,32 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .intro-tag { color: #acbcb1; border: 1px solid #35453c; border-radius: 100px; padding: 12px 16px; white-space: nowrap; font-size: 10px; font-weight: 770; letter-spacing: .1em; }
 .dot { display: inline-block; width: 7px; height: 7px; margin-right: 9px; border-radius: 50%; background: #8dd9a3; box-shadow: 0 0 14px #8dd9a360; }
 
-.workspace { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(325px, 1fr); gap: 18px; align-items: stretch; }
-.editor-panel, .side-panel, .config-panel, .trace-panel { border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; box-shadow: 0 15px 60px #00000025; }
+.workspace { display: grid; grid-template-columns: minmax(0, 2.6fr) minmax(265px, .85fr); gap: 18px; align-items: stretch; }
+.editor-panel, .side-panel, .trace-panel { border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; box-shadow: 0 15px 60px #00000025; }
 .editor-panel { display: flex; flex-direction: column; height: 600px; min-height: 0; background: #0e1717; }
-.panel-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 17px 20px; background: #182322; border-bottom: 1px solid #33413d; font-size: 12px; }
-.panel-header > div { display: flex; align-items: center; gap: 12px; }
-.tab-dot { width: 8px; height: 8px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 14px #e0a50055; }
-.muted { color: #788c83; font-size: 10px; font-weight: 650; letter-spacing: .12em; }
-.header-actions { gap: 18px !important; }
+.panel-header { display: flex; justify-content: space-between; align-items: stretch; gap: 12px; min-height: 58px; padding-right: 19px; background: #182322; border-bottom: 1px solid #33413d; font-size: 12px; }
+.editor-tabs, .header-actions, .source-actions { display: flex; align-items: center; }
+.editor-tabs { min-width: 0; }
+.editor-tab { display: flex; align-items: center; gap: 10px; align-self: stretch; padding: 0 18px; border: 0; border-right: 1px solid #33413d; border-bottom: 2px solid transparent; background: transparent; color: #a6b9ae; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.editor-tab:hover { color: var(--gold); }
+.editor-tab.active { color: #f0f5f0; background: #0e1717; border-bottom-color: var(--gold); }
+.tab-dot { display: inline-block; flex: 0 0 8px; width: 8px; height: 8px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 14px #e0a50055; }
+.header-actions { gap: 18px; }
+.source-actions { gap: 17px; }
+.split-button { border: 1px solid #405047; border-radius: 5px; background: #25342f; color: #d6e2da; padding: 8px 10px; font-size: 11px; white-space: nowrap; }
+.split-button:hover, .split-button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
 .link-button { border: 0; padding: 5px 0; background: none; color: #b1c0b8; font-size: 11px; }
 .link-button:hover { color: var(--gold); }
+.source-actions[hidden], .editor-footer [hidden] { display: none; }
+.editor-body { display: flex; flex: 1; min-height: 0; }
+.editor-body[data-view="sequence"] .environment-pane, .editor-body[data-view="environment"] .code-wrap { display: none; }
+.editor-body[data-view="split"] .code-wrap { flex: 1.2; min-width: 0; }
+.editor-body[data-view="split"] .environment-pane { flex: 1; border-left: 1px solid #33413d; }
 .code-wrap { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.environment-pane { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; background: #0e1717; }
+.environment-label { display: flex; justify-content: space-between; gap: 12px; padding: 15px 19px; border-bottom: 1px solid #2f413a; background: #121f1c; color: #a7bdb1; font-size: 11px; }
+.environment-label span:last-child { color: var(--gold); font-size: 10px; letter-spacing: .12em; }
+#mapping { width: 100%; flex: 1; min-height: 0; padding: 20px; resize: none; border: 0; outline: 0; background: transparent; color: #e2eae4; font: 12px/1.7 "SFMono-Regular", Consolas, "Liberation Mono", monospace; tab-size: 2; }
 #gutter { flex: 0 0 51px; min-height: 0; margin: 0; padding: 25px 14px 25px 0; text-align: right; background: #101a19; color: #62746c; font: 13px/1.9 "SFMono-Regular", Consolas, "Liberation Mono", monospace; overflow: hidden; user-select: none; border-right: 1px solid #22312d; }
 .code-input { position: relative; flex: 1; min-width: 0; min-height: 0; }
 #highlight, #source { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 25px 18px; font: 13px/1.9 "SFMono-Regular", Consolas, "Liberation Mono", monospace; tab-size: 4; white-space: pre; border: 0; }
@@ -102,7 +117,7 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 #engine-status[data-level=success] { color: #98ddab; }
 
 .side-panel { min-width: 0; display: flex; flex-direction: column; background: #14201e; }
-.side-section { padding: 24px; border-bottom: 1px solid #2b3934; }
+.side-section { padding: 19px; border-bottom: 1px solid #2b3934; }
 .side-section:last-child { border: 0; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 17px; }
 .section-heading h2 { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .025em; }
@@ -135,17 +150,6 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .example:hover { background: #2e3826; border-color: #b48a26; }
 .example span { color: var(--gold); }
 
-.config-panel { margin-top: 18px; background: #14201e; }
-.config-panel summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 19px 24px; list-style: none; }
-.config-panel summary::-webkit-details-marker { display: none; }
-.config-panel summary > div { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; font-size: 12px; }
-.config-panel summary span:not(.settings-icon):not(.caret) { font-size: 10px; letter-spacing: .08em; font-weight: 750; color: #b29449; }
-.settings-icon { color: var(--gold); font-size: 20px; }
-.caret { color: #a8b8ad; transition: transform .2s; }
-details[open] .caret { transform: rotate(180deg); }
-.config-body { border-top: 1px solid #2b3934; padding: 20px 24px 24px; }
-#mapping { width: 100%; min-height: 176px; padding: 15px; resize: vertical; background: #0d1716; border: 1px solid #34453d; border-radius: 6px; color: #e2eae4; font: 12px/1.6 Consolas, monospace; }
-
 .trace-panel { margin-top: 18px; background: #14201e; }
 .trace-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 26px; border-bottom: 1px solid #2b3934; }
 .trace-header h2 { margin: 5px 0 0; font-size: 19px; letter-spacing: -.03em; }
@@ -171,6 +175,11 @@ footer strong { color: #efc261; }
   .workspace { grid-template-columns: 1fr; }
   .editor-panel { height: 540px; }
 }
+@media (max-width: 800px) {
+  .editor-body[data-view="split"] { flex-direction: column; }
+  .editor-body[data-view="split"] .code-wrap, .editor-body[data-view="split"] .environment-pane { flex: 1; min-height: 0; }
+  .editor-body[data-view="split"] .environment-pane { border-left: 0; border-top: 1px solid #33413d; }
+}
 @media (max-width: 670px) {
   .topbar { height: 67px; padding: 0 16px; }
   .brand { gap: 12px; font-size: 9px; }
@@ -181,12 +190,13 @@ footer strong { color: #efc261; }
   .intro { padding: 36px 4px 27px; display: block; }
   .intro-tag { display: inline-block; margin-top: 22px; }
   .intro p { line-height: 1.7; }
-  .panel-header { padding: 15px; flex-wrap: wrap; }
-  .panel-header .muted { display: none; }
+  .panel-header { padding: 0 12px 10px 0; flex-wrap: wrap; }
+  .editor-tabs { flex: 1 1 100%; }
+  .editor-tab { padding: 17px 14px; }
+  .header-actions { margin-left: 14px; gap: 15px; }
   .actions { padding: 15px; }
   #engine-status { max-width: none; width: 100%; text-align: left; margin: 5px 0 0; }
   .side-section { padding: 19px; }
-  .config-panel summary, .config-body { padding: 17px; }
   .event-row { grid-template-columns: 72px 65px 1fr; gap: 7px; }
   .event-list { padding: 10px 18px; }
   .trace-header { padding: 20px; }

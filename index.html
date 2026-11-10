@@ -23,10 +23,16 @@
       </section>
 
       <div class="workspace">
-        <section class="editor-panel" aria-label="Python sequence editor">
-          <div class="panel-header"><div><span class="tab-dot"></span><strong>sequence.py</strong><span class="muted">PYTHON</span></div><div class="header-actions"><button id="upload" class="link-button" type="button">Open .py</button><button id="download" class="link-button" type="button">Download ↓</button></div></div>
-          <div class="code-wrap"><pre id="gutter" aria-hidden="true">1</pre><div class="code-input"><pre id="highlight" aria-hidden="true"></pre><textarea id="source" aria-label="Python sequence source" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div></div>
-          <div class="editor-footer"><span id="editor-info">0 lines</span><span>⌘ / Ctrl + Enter</span></div>
+        <section class="editor-panel" aria-label="Sequence and test environment editors">
+          <div class="panel-header">
+            <div class="editor-tabs" role="tablist" aria-label="Editor tabs"><button id="sequence-tab" class="editor-tab active" role="tab" aria-controls="sequence-pane" aria-selected="true" type="button"><span class="tab-dot"></span>sequence.py</button><button id="environment-tab" class="editor-tab" role="tab" aria-controls="environment-pane" aria-selected="false" type="button">Test Environment</button></div>
+            <div class="header-actions"><button id="split-toggle" class="split-button" aria-pressed="false" type="button">▥ Split view</button><div id="source-actions" class="source-actions"><button id="upload" class="link-button" type="button">Open .py</button><button id="download" class="link-button" type="button">Download ↓</button></div></div>
+          </div>
+          <div id="editor-body" class="editor-body" data-view="sequence">
+            <div id="sequence-pane" class="code-wrap" role="tabpanel" aria-labelledby="sequence-tab"><pre id="gutter" aria-hidden="true">1</pre><div class="code-input"><pre id="highlight" aria-hidden="true"></pre><textarea id="source" aria-label="Python sequence source" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div></div>
+            <div id="environment-pane" class="environment-pane" role="tabpanel" aria-labelledby="environment-tab"><div class="environment-label"><span>Valve & sensor inputs</span><span>JSON</span></div><textarea id="mapping" aria-label="Valve and sensor mapping JSON" spellcheck="false"></textarea></div>
+          </div>
+          <div class="editor-footer"><span id="editor-info">0 lines</span><span id="environment-info" hidden>Test Environment · JSON</span><span>⌘ / Ctrl + Enter</span></div>
           <div class="actions"><button id="validate" class="button secondary" type="button">Validate code</button><button id="simulate" class="button primary" type="button"><span>▶</span> Run simulation</button><span id="engine-status" role="status">Loading Python runtime…</span></div>
         </section>
 
@@ -36,8 +42,6 @@
           <div class="side-section"><div class="section-heading"><h2>Examples</h2></div><div class="examples"><button class="example" data-example="vespula" type="button">Vespula prePress <span>↗</span></button><button class="example" data-example="tank" type="button">Tank press <span>↗</span></button><button class="example" data-example="pulse" type="button">Valve pulse <span>↗</span></button><button class="example" data-example="import" type="button">Missing import <span>↗</span></button><button class="example" data-example="api" type="button">API mistake <span>↗</span></button></div></div>
         </aside>
       </div>
-
-      <section class="config-panel"><details id="configuration"><summary><div><span class="settings-icon">⌘</span><strong>Simulation inputs</strong><span>DEMO MAPPINGS</span></div><span class="caret">⌄</span></summary><div class="config-body"><textarea id="mapping" aria-label="Valve and sensor mapping JSON" spellcheck="false"></textarea></div></details></section>
 
       <section class="trace-panel"><div class="trace-header"><div><div class="eyebrow">SIMULATION</div><h2>Execution trace</h2></div><div><span id="virtual-time">—</span><small>VIRTUAL TIME</small></div></div><div id="trace" class="trace-empty">No simulation output</div><div id="stdout-box" class="stdout-box" hidden><h3>Printed output</h3><pre id="stdout"></pre></div></section>
 

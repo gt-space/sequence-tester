@@ -181,6 +181,7 @@ function render(result) {
     row.querySelector(".issue-message").textContent = item.message;
     row.onclick = () => {
       if (!item.line) return;
+      if (!splitView) selectTab("sequence");
       const lines = source.value.split("\n");
       const offset = lines.slice(0, item.line - 1).reduce((sum, line) => sum + line.length + 1, 0);
       source.focus();
@@ -228,6 +229,30 @@ function updateEditor() {
 
 source.value = localStorage.getItem("yjsp-sequence-source") ?? EXAMPLES.tank;
 mapping.value = localStorage.getItem("yjsp-sequence-mapping") ?? JSON.stringify(DEFAULT_MAPPING, null, 2);
+let currentTab = "sequence";
+let splitView = false;
+function updateLayout() {
+  $("editor-body").dataset.view = splitView ? "split" : currentTab;
+  for (const name of ["sequence", "environment"]) {
+    const tab = $(`${name}-tab`);
+    tab.classList.toggle("active", currentTab === name);
+    tab.setAttribute("aria-selected", String(currentTab === name));
+  }
+  $("split-toggle").setAttribute("aria-pressed", String(splitView));
+  $("split-toggle").textContent = splitView ? "▣ Single view" : "▥ Split view";
+  $("source-actions").hidden = !splitView && currentTab === "environment";
+  $("editor-info").hidden = !splitView && currentTab === "environment";
+  $("environment-info").hidden = splitView || currentTab !== "environment";
+}
+function selectTab(name) {
+  currentTab = name;
+  updateLayout();
+  (name === "sequence" ? source : mapping).focus();
+}
+$("sequence-tab").onclick = () => selectTab("sequence");
+$("environment-tab").onclick = () => selectTab("environment");
+$("split-toggle").onclick = () => { splitView = !splitView; updateLayout(); };
+updateLayout();
 updateEditor();
 source.addEventListener("input", () => { updateEditor(); invalidateResults(); });
 source.addEventListener("scroll", () => { $("gutter").scrollTop = source.scrollTop; $("highlight").scrollTop = source.scrollTop; $("highlight").scrollLeft = source.scrollLeft; });

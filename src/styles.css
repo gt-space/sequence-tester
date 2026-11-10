@@ -197,7 +197,6 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .clock-settings select, .clock-settings input { color: #e1eae4; background: #24332d; border: 1px solid #46564d; border-radius: 5px; padding: 7px 5px; font: inherit; }
 .clock-settings select:focus-visible, .clock-settings input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .clock-settings input { width: 61px; }
-.clock-settings [hidden] { display: none; }
 #engine-status { margin-left: auto; max-width: 240px; text-align: right; color: #9bad9f; font-size: 11px; line-height: 1.5; }
 #engine-status[data-level=error] { color: #ffad9f; }
 #engine-status[data-level=success] { color: #98ddab; }

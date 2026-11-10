@@ -45,18 +45,11 @@ let running = false;
 let startupPhase = "Loading Python runtime…";
 let activeSourceLine = 0;
 
-const clockMode = $("clock-mode");
 const clockSpeed = $("clock-speed");
 const timeLimit = $("time-limit");
-clockMode.value = ["realtime", "deterministic"].includes(localStorage.getItem("yjsp-clock-mode"))
-  ? localStorage.getItem("yjsp-clock-mode") : "realtime";
 clockSpeed.value = ["1", "5", "10", "20"].includes(localStorage.getItem("yjsp-clock-speed"))
   ? localStorage.getItem("yjsp-clock-speed") : "5";
 timeLimit.value = localStorage.getItem("yjsp-time-limit") ?? "600";
-
-function updateClockSettings() {
-  $("speed-setting").hidden = clockMode.value !== "realtime";
-}
 
 function clearExecutionTimers() {
   clearTimeout(executionTimeout);
@@ -202,7 +195,7 @@ function run(mode) {
     setStatus("Simulated-time limit must be between 1 and 3600 seconds", "error");
     return;
   }
-  const options = { clock_mode: clockMode.value, speed: Number(clockSpeed.value),
+  const options = { clock_mode: "realtime", speed: Number(clockSpeed.value),
     max_duration: mode === "simulate" ? maxDuration : 600 };
   const request = { id: ++currentId, mode, source: source.value, mapping: mapping.value, options };
   localStorage.setItem("yjsp-sequence-source", source.value);
@@ -410,16 +403,13 @@ source.addEventListener("keydown", event => {
 });
 $("validate").onclick = () => run("validate");
 $("simulate").onclick = () => run("simulate");
-for (const control of [clockMode, clockSpeed, timeLimit]) {
+for (const control of [clockSpeed, timeLimit]) {
   control.addEventListener("change", () => {
-    localStorage.setItem("yjsp-clock-mode", clockMode.value);
     localStorage.setItem("yjsp-clock-speed", clockSpeed.value);
     localStorage.setItem("yjsp-time-limit", timeLimit.value);
-    updateClockSettings();
     invalidateResults();
   });
 }
-updateClockSettings();
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
   environment.load(button.dataset.example === "vespula" ? VESPULA_MAPPING :

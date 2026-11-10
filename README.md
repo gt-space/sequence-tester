@@ -7,7 +7,7 @@ A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna)
 1. Python syntax and indentation checks through Python's parser.
 2. Undefined-name checks, including missing `import time` and typos in script variables.
 3. Luna API and mapping checks for exported names, valve/sensor constructors, and their methods.
-4. Browser-only simulated execution with **continuous clock (5× default)** or **deterministic clock**, mock sensors, valve commands, exceptions, and an event trace.
+4. Browser-only simulated execution with a **continuous clock (5× default)**, mock sensors, valve commands, exceptions, and an event trace. The deterministic clock remains available internally for automated tests.
 5. Valve-driven sensors with complete valve-state truth tables, linear rates, and optional bounds for feedback control loops.
 6. Synchronized valve-state and sensor plots, with up to four pinned time cursors and per-trace readouts.
 7. Click a valve transition, a sensor source-link, or a trace event to highlight the originating Python line.
@@ -84,13 +84,14 @@ Each bit is the corresponding valve in the listed order: `0` means CLOSED, `1` m
 
 ## Simulation clock
 
-The clock setting is in the tester's run controls; **nothing is added to `sequence.py`**. The exact same Python code can be pasted into Luna or tested here.
+Simulation runs with a continuous clock. The speed and duration limit are set in the tester's run controls; **nothing is added to `sequence.py`**. The exact same Python code can be pasted into Luna or tested here.
 
-- **Continuous** (default) advances simulated time with the actual elapsed wall clock, scaled by 5×. The speed selector also offers 1×, 10×, or 20×. At 5×, a 10-second Luna wait takes approximately 2 seconds to simulate. Sensor reads, valve transitions, `time.time()`, `time.monotonic()`, `time.perf_counter()`, `time.sleep()`, `wait_for()`, `wait_until()`, and `interval()` share this clock. A busy-polling loop such as `while CTPT.read() < 300 * psi: pass` now sees the pressure rise based on configured valve rates without an artificial wait inserted into the user's source.
-- **Deterministic** preserves the original instant, repeatable time advancement: simulated time moves only when the script calls an explicit wait, sleep, or interval. It is useful for quick regression tests of sequences that already contain waits. Tight polling loops that never call a time-advancing API will still stall in this mode.
+- **Continuous clock** advances simulated time with the actual elapsed wall clock, scaled by 5× by default. The speed selector also offers 1×, 10×, or 20×. At 5×, a 10-second Luna wait takes approximately 2 seconds to simulate. Sensor reads, valve transitions, `time.time()`, `time.monotonic()`, `time.perf_counter()`, `time.sleep()`, `wait_for()`, `wait_until()`, and `interval()` share this clock. A busy-polling loop such as `while CTPT.read() < 300 * psi: pass` sees pressure rise based on configured valve rates without an artificial wait inserted into the user's source.
 - **Limit** caps simulated duration (default 600 seconds, configurable from 1 to 3600). When a sensor condition cannot complete before the limit, the runtime reports an error, including the last sensor reading and its active valve-state truth-table rate when available. An additional main-thread watchdog terminates a worker that never returns, even if it calls no simulated API.
 
 The output shows simulated seconds, wall-clock seconds, target speed, measured effective speed, and wait overshoot. These are simulator timing diagnostics, not a measurement of Luna's real hardware scheduler or control-loop response time. Browser scheduling and Pyodide execution can introduce jitter, especially at high acceleration.
+
+The Python engine retains a deterministic clock for automated regression tests. It is intentionally not selectable in the website because a Luna sequence with a tight sensor-polling loop can stall when time only advances on explicit waits.
 
 ## Simulation output
 
@@ -102,7 +103,7 @@ Time profiles are **inputs** independent of commands. Valve-driven readings resp
 
 The supported sequence API is modeled after `common/src/sequence/{mod,func,device,unit}.rs` and the Python prelude in `flight2/src/sequence.rs` from Luna. All common exports, `OPEN`/`CLOSED`, and mapped names are available without explicit imports.
 
-- `wait_for`, `wait_until`, `interval`, and `time.sleep()` advance time in both modes. Continuous mode also advances time between these calls. `wait_until()` returns normally on its own timeout, matching Luna, but the tester flags a warning and shows a timeout trace event so the operator sees that the condition never became true. The separate global simulated-time limit is a test error.
+- `wait_for`, `wait_until`, `interval`, and `time.sleep()` advance time while the continuous clock also progresses between calls. `wait_until()` returns normally on its own timeout, matching Luna, but the tester flags a warning and shows a timeout trace event so the operator sees that the condition never became true. The separate global simulated-time limit is a test error.
 - Actuation and abort functions record *requested commands* only. `set_abort_stage()` does not test real revision/acknowledgment logic.
 - Modules other than the selected set (`common`, `time`, and `math`) are not supported in simulation, even if valid in Luna. Syntax/name validation can still run on them.
 - No assertion is made about physical response, real sensor reliability, board synchronization, or failure-handling correctness.

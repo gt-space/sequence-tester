@@ -71,6 +71,23 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["checks"]["runtime"], "pass")
         self.assertEqual(len(result["events"]), 2)
         self.assertEqual(result["events"][1]["time"], 0.002)
+        self.assertEqual([event["line"] for event in result["events"]], [2, 4])
+
+    def test_event_source_location_in_loop(self):
+        result = self.check("for i in range(2):\n    press_valve.open()\n    wait_for(1*s)\n    press_valve.close()", True)
+        self.assertEqual(result["checks"]["runtime"], "pass")
+        self.assertEqual([event["line"] for event in result["events"]], [2, 4, 2, 4])
+
+    def test_sensor_source_lines_and_profiles(self):
+        result = self.check("wait_for(1*s)\nx = tank_pt.read()\ny = tank_pt.read()", True)
+        self.assertEqual(result["checks"]["runtime"], "pass")
+        self.assertEqual(result["simulation"]["sensor_read_lines"]["tank_pt"], [2, 3])
+        self.assertEqual(result["simulation"]["sensors"]["tank_pt"]["samples"][1]["value"], 310)
+
+    def test_initial_state_is_in_simulation_payload(self):
+        mapping = {**MAPPING, "valves": [{"name": "press_valve", "initial": "OPEN"}]}
+        result = self.check("print(press_valve.is_open())", True, mapping=mapping)
+        self.assertEqual(result["simulation"]["initial_valves"]["press_valve"], "OPEN")
 
     def test_tank_press_trace(self):
         source = "press_valve.open()\nwait_until(lambda: tank_pt.read() >= 300*psi, 5*s)\npress_valve.close()"

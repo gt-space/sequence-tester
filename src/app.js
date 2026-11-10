@@ -1,5 +1,6 @@
 import { highlightPython } from "./highlight.js";
 import { createEnvironmentEditor } from "./environment.js";
+import { createTimelineView } from "./timeline.js";
 
 const EXAMPLES = {
   vespula: "# tank pre press sequence\nimport time\nprint('Pre Press Sequence has begun')\n\n# define pressure variables\nftpt_target = 416*psi # psia, target fuel tank pressure\notpt_target = 357*psi # psia, target lox tank pressure\nupRan = 2*psi # psi, upper range bound for bang bang algorithm\nlowRan = 3*psi # psi, lower range bound for bang bang algorithm\n\n# time variables\npress_time = 20 # s, sequence duration\nwait_timing = 5 # ms\n\n# confirm switch closed\nFSWV.close()\nOSWV.close()\nwait_for(wait_timing*ms)\n\n# initialize valve state variables\nFBB.close()\nFBBopen = False # hardcoded for consistency\nOBB.close()\nOBBopen = False # hardcoded due to feedback issues on sam-21\n\nstart_time = time.time() # s, current time\n\n# press tanks with bang bang algorithm\nwhile time.time() < start_time + press_time:\n\t# check pressures\n\tcurrFTPT = FTPT.read()\n\tcurrOTPT = OTPT.read()\n\t# bang bang algorithm\n\tif FBBopen and currFTPT > ftpt_target + upRan:\n\t\tFBB.close()\n\t\tFBBopen = False\n\telif (not FBBopen) and currFTPT < ftpt_target - lowRan:\n\t\tFBB.open()\n\t\tFBBopen = True\n\tif OBBopen and currOTPT > otpt_target + upRan:\n\t\tOBB.close()\n\t\tOBBopen = False\n\telif (not OBBopen) and currOTPT < otpt_target - lowRan:\n\t\tOBB.open()\n\t\tOBBopen = True\n\twait_for(wait_timing*ms)\n\nOBB.close()\nFBB.close()\n\nprint('Pre Press Sequence has ended')",
@@ -34,6 +35,49 @@ let executionTimeout;
 let startupTimeout;
 let running = false;
 let startupPhase = "Loading Python runtime…";
+let activeSourceLine = 0;
+
+function updateLineFocus() {
+  const indicator = $("line-focus");
+  if (!activeSourceLine) { indicator.hidden = true; return; }
+  const lineHeight = parseFloat(getComputedStyle(source).lineHeight) || 24.7;
+  const padding = parseFloat(getComputedStyle(source).paddingTop) || 25;
+  indicator.hidden = false;
+  indicator.style.top = `${padding + (activeSourceLine - 1) * lineHeight - source.scrollTop}px`;
+  indicator.style.height = `${lineHeight}px`;
+}
+
+function jumpToSourceLine(line, eventIndex = -1) {
+  if (!line || line < 1) return;
+  if (!splitView) selectTab("sequence");
+  const lines = source.value.split("\n");
+  if (line > lines.length) return;
+  const offset = lines.slice(0, line - 1).reduce((sum, text) => sum + text.length + 1, 0);
+  const lineHeight = parseFloat(getComputedStyle(source).lineHeight) || 24.7;
+  source.focus();
+  source.setSelectionRange(offset, offset + lines[line - 1].length);
+  source.scrollTop = Math.max(0, (line - 4) * lineHeight);
+  source.scrollLeft = 0;
+  $("gutter").scrollTop = source.scrollTop;
+  $("highlight").scrollTop = source.scrollTop;
+  $("highlight").scrollLeft = 0;
+  activeSourceLine = line;
+  updateLineFocus();
+  document.querySelectorAll(".event-row").forEach(row => row.classList.toggle("is-selected", Number(row.dataset.line) === line));
+  if (eventIndex >= 0) timeline.selectEvent(eventIndex);
+  else timeline.highlightLine(line);
+}
+
+function sourceCursorMoved() {
+  const before = source.value.slice(0, source.selectionStart);
+  const line = before.split("\n").length;
+  activeSourceLine = line;
+  updateLineFocus();
+  timeline.highlightLine(line);
+  document.querySelectorAll(".event-row").forEach(row => row.classList.toggle("is-selected", Number(row.dataset.line) === line));
+}
+
+const timeline = createTimelineView({ container: $("visual-output"), onJumpToSource: jumpToSourceLine });
 
 function setStatus(message, level = "normal") {
   status.textContent = message;
@@ -143,8 +187,14 @@ function invalidateResults() {
   $("diagnostics").className = "empty-state";
   $("diagnostics").textContent = "Not checked";
   $("virtual-time").textContent = "—";
+  timeline.clear();
+  $("trace-placeholder").hidden = false;
+  $("event-details").hidden = true;
+  $("event-count").textContent = "0";
   $("trace").className = "trace-empty";
   $("trace").textContent = "No simulation output";
+  activeSourceLine = 0;
+  updateLineFocus();
   $("stdout-box").hidden = true;
   $("stdout").textContent = "";
   if (ready) setStatus("Edited · revalidate");
@@ -181,27 +231,34 @@ function render(result) {
     row.querySelector(".issue-kicker").textContent = `${item.severity.toUpperCase()} · ${where}`;
     row.querySelector(".issue-message").textContent = item.message;
     row.onclick = () => {
-      if (!item.line) return;
-      if (!splitView) selectTab("sequence");
-      const lines = source.value.split("\n");
-      const offset = lines.slice(0, item.line - 1).reduce((sum, line) => sum + line.length + 1, 0);
-      source.focus();
-      source.setSelectionRange(offset, offset + (lines[item.line - 1] || "").length);
+      jumpToSourceLine(item.line);
     };
     list.append(row);
   }
   $("virtual-time").textContent = typeof result.virtual_time === "number" ? `${result.virtual_time.toFixed(3)} s` : "—";
+  if (result.simulation) timeline.load(result);
+  else timeline.clear();
+  $("trace-placeholder").hidden = Boolean(result.simulation);
   const trace = $("trace");
   trace.replaceChildren();
   const events = result.events || [];
+  $("event-details").hidden = !events.length;
+  $("event-count").textContent = String(events.length);
   if (!events.length) {
     trace.className = "trace-empty";
     trace.textContent = stages.runtime === "pass" ? "No hardware events" : "No simulation output";
   } else {
     trace.className = "event-list";
-    for (const event of events) {
-      const row = document.createElement("div");
+    for (const [index, event] of events.entries()) {
+      const row = document.createElement("button");
+      row.type = "button";
       row.className = "event-row";
+      row.dataset.eventIndex = index;
+      row.dataset.line = event.line || "0";
+      if (event.line) {
+        row.title = `View sequence.py:${event.line}`;
+        row.onclick = () => jumpToSourceLine(event.line, index);
+      } else row.disabled = true;
       const time = document.createElement("span");
       time.className = "event-time";
       time.textContent = `${Number(event.time).toFixed(3)} s`;
@@ -211,6 +268,7 @@ function render(result) {
       const detail = document.createElement("span");
       detail.textContent = `${event.target} · ${event.detail}`;
       row.append(time, kind, detail);
+      if (event.line) row.append(Object.assign(document.createElement("span"), { className: "event-source", textContent: `L${event.line} ↗` }));
       trace.append(row);
     }
   }
@@ -226,6 +284,7 @@ function updateEditor() {
   $("highlight").scrollTop = source.scrollTop;
   $("highlight").scrollLeft = source.scrollLeft;
   localStorage.setItem("yjsp-sequence-source", source.value);
+  updateLineFocus();
 }
 
 source.value = localStorage.getItem("yjsp-sequence-source") ?? EXAMPLES.tank;
@@ -269,7 +328,9 @@ $("split-toggle").onclick = () => { splitView = !splitView; updateLayout(); };
 updateLayout();
 updateEditor();
 source.addEventListener("input", () => { updateEditor(); invalidateResults(); });
-source.addEventListener("scroll", () => { $("gutter").scrollTop = source.scrollTop; $("highlight").scrollTop = source.scrollTop; $("highlight").scrollLeft = source.scrollLeft; });
+source.addEventListener("scroll", () => { $("gutter").scrollTop = source.scrollTop; $("highlight").scrollTop = source.scrollTop; $("highlight").scrollLeft = source.scrollLeft; updateLineFocus(); });
+source.addEventListener("click", sourceCursorMoved);
+source.addEventListener("keyup", sourceCursorMoved);
 source.addEventListener("keydown", event => {
   if (event.key === "Tab") {
     event.preventDefault();

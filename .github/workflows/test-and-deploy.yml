@@ -26,8 +26,9 @@ jobs:
           node --check src/app.js
           node --check src/environment.js
           node --check src/highlight.js
+          node --check src/timeline.js
           node --check src/worker.js
-          node --test tests/test_environment.mjs
+          node --test tests/test_environment.mjs tests/test_timeline.mjs
 
   deploy:
     if: github.event_name == 'push'
@@ -49,12 +50,13 @@ jobs:
         run: |
           mkdir -p site-dist/src
           cp index.html site-dist/
-          cp src/app.js src/environment.js src/highlight.js src/worker.js src/styles.css src/engine.py src/yjsplogo.png site-dist/src/
+          cp src/app.js src/environment.js src/highlight.js src/timeline.js src/worker.js src/styles.css src/engine.py src/yjsplogo.png site-dist/src/
           cp -r /tmp/sequence-pyodide/node_modules/pyodide site-dist/src/pyodide
           sed -i "s|./src/app.js|./src/app.js?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./src/styles.css|./src/styles.css?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./highlight.js|./highlight.js?build=${GITHUB_SHA}|" site-dist/src/app.js
           sed -i "s|./environment.js|./environment.js?build=${GITHUB_SHA}|" site-dist/src/app.js
+          sed -i "s|./timeline.js|./timeline.js?build=${GITHUB_SHA}|" site-dist/src/app.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site-dist

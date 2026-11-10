@@ -2,12 +2,14 @@
 
 A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna) Python scripts. All user code is analyzed and simulated in the visitor's browser; the server only hosts static files.
 
-## Features (MVP layers 1–4)
+## Features
 
 1. Python syntax and indentation checks through Python's parser.
 2. Undefined-name checks, including missing `import time` and typos in script variables.
 3. Luna API and mapping checks for exported names, valve/sensor constructors, and their methods.
 4. Browser-only simulated execution, virtual time, mock sensors, valve commands, exceptions, and an event trace.
+5. Synchronized valve-state and sensor-profile plots, with up to four pinned time cursors and per-trace readouts.
+6. Click a valve transition, a sensor source-link, or a trace event to highlight the originating Python line.
 
 **Not implemented:** behavioral assertions (layer 5), fault injection (layer 6), accurate hardware behavior, hardware-confirmed abort stages, or physical SAM testing. Passing these checks does not demonstrate that a sequence is safe to run on hardware.
 
@@ -25,8 +27,9 @@ Open `http://localhost:8000`. The deployed site serves [Pyodide](https://pyodide
 python3 -m unittest discover -s tests -v
 node --check src/app.js
 node --check src/environment.js
+node --check src/timeline.js
 node --check src/worker.js
-node --test tests/test_environment.mjs
+node --test tests/test_environment.mjs tests/test_timeline.mjs
 ```
 
 GitHub Actions runs these checks on every push and PR. A push to `main` deploys the static site through GitHub Pages once Pages is enabled for the repository.
@@ -35,8 +38,8 @@ GitHub Actions runs these checks on every push and PR. A push to `main` deploys 
 
 Operators configure valves and sensor profiles in the Test Environment tab. Luna injects names from flight mappings, so these names must be declared independently of the sequence to catch undefined devices and invalid method calls. The site ships with illustrative names only.
 
-- Add valves by name and choose their **initial simulation state** (`OPEN` or `CLOSED`). This is not the physical normally-open/normally-closed polarity in Luna's SAM mappings.
-- Add sensors by name and unit, then edit timestamped readings. The graph previews the profile. Choose **Step / hold** (default) or **Linear** interpolation.
+- Add valves in a compact table and choose their **initial simulation state** (`OPEN` or `CLOSED`). This is not the physical normally-open/normally-closed polarity in Luna's SAM mappings.
+- Add sensors by name and unit. Sensor cards show a compact waveform preview and expand to edit timestamped readings. Choose **Step / hold** (default) or **Linear** interpolation.
 - Switch between sequence and environment tabs or show both in split view. The generated JSON is internal and not edited directly.
 
 The stored configuration has this format (legacy valve-name strings remain supported):
@@ -63,6 +66,12 @@ The stored configuration has this format (legacy valve-name strings remain suppo
 ```
 
 Step profiles hold the most recent sample at or before virtual time `t`; linear profiles interpolate between adjacent samples. No physical tank or valve model is assumed. Supported sensor units: `unknown`, `psi`, `V`, `A`, `lbf`, `K`.
+
+## Simulation output
+
+After **Run simulation**, the result contains two aligned plots: requested valve states and the configured sensor input profiles. Hovering either plot synchronizes the time cursor and shows every mapped trace's value. Clicking an empty part of a plot pins a cursor; up to four can be compared side by side and removed individually. Clicking a valve transition or the event-log line link jumps to the source line that issued it. Sensor track links jump to their recorded `.read()` lines; clicking a line in the editor highlights associated valve transitions on the plot. The detailed event log is collapsible.
+
+The sensor profiles are **inputs**, not calculated responses to valve actuation. A graph that looks plausible is not physical verification or validation of control performance.
 
 ## Compatibility and limitations
 

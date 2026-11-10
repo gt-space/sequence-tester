@@ -113,6 +113,7 @@ export function normalizeEnvironment(raw, fallback) {
 
 export function createEnvironmentEditor({ mapping, valveList, sensorList, initial, fallback, onChange }) {
   let data = normalizeEnvironment(initial, fallback);
+  let expandedSensors = new WeakSet();
 
   function save(notify = true) {
     mapping.value = JSON.stringify(data);
@@ -121,26 +122,46 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
 
   function renderValves() {
     valveList.replaceChildren();
+    if (data.valves.length) {
+      const headings = node("div", "env-valve-table-head");
+      headings.append(node("span", "", "VALVE NAME"), node("span", "", "STARTING STATE"));
+      valveList.append(headings);
+    }
     data.valves.forEach((valve, index) => {
       const row = node("div", "env-valve-row");
       const remove = action("×", () => { data.valves.splice(index, 1); renderValves(); save(); }, "env-remove");
       remove.setAttribute("aria-label", `Remove valve ${valve.name || index + 1}`);
       row.append(
-        field("Name", valve.name, value => { valve.name = value; save(); }),
-        dropdown("Initial state", valve.initial, [["CLOSED", "Closed"], ["OPEN", "Open"]], value => { valve.initial = value; save(); }),
+        field("Valve name", valve.name, value => { valve.name = value; save(); }),
+        dropdown("Starting state", valve.initial, [["CLOSED", "Closed"], ["OPEN", "Open"]], value => { valve.initial = value; save(); }),
         remove
       );
       valveList.append(row);
     });
     if (!data.valves.length) valveList.append(node("div", "env-empty", "No valves configured"));
+    document.getElementById("valve-count").textContent = String(data.valves.length);
   }
 
   function renderSensors() {
     sensorList.replaceChildren();
     data.sensors.forEach((sensor, index) => {
       const card = node("section", "env-sensor-card");
+      const expanded = expandedSensors.has(sensor);
+      card.classList.toggle("expanded", expanded);
       const heading = node("div", "env-sensor-header");
-      heading.append(node("strong", "", sensor.name || "New sensor"));
+      const toggle = action("", () => {
+        if (expanded) expandedSensors.delete(sensor);
+        else expandedSensors.add(sensor);
+        renderSensors();
+      }, "env-sensor-toggle");
+      toggle.setAttribute("aria-expanded", String(expanded));
+      toggle.setAttribute("aria-label", `${expanded ? "Collapse" : "Edit"} sensor ${sensor.name || index + 1}`);
+      toggle.append(node("span", "env-sensor-icon", "∿"));
+      const title = node("span", "env-sensor-title");
+      title.append(node("strong", "", sensor.name || "New sensor"));
+      title.append(node("small", "", `${sensor.samples.length} points · ${sensor.unit}`));
+      toggle.append(title, node("span", "env-chevron", expanded ? "⌃" : "⌄"));
+      heading.append(toggle);
       const removeSensor = action("×", () => { data.sensors.splice(index, 1); renderSensors(); save(); }, "env-remove");
       removeSensor.setAttribute("aria-label", `Remove sensor ${sensor.name || index + 1}`);
       heading.append(removeSensor);
@@ -148,11 +169,15 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
       const fields = node("div", "env-sensor-fields");
       const name = field("Name", sensor.name, value => {
         sensor.name = value;
-        heading.querySelector("strong").textContent = value || "New sensor";
+        title.querySelector("strong").textContent = value || "New sensor";
         refreshChart();
         save();
       });
-      const unit = dropdown("Unit", sensor.unit, UNITS.map(value => [value, value]), value => { sensor.unit = value; save(); });
+      const unit = dropdown("Unit", sensor.unit, UNITS.map(value => [value, value]), value => {
+        sensor.unit = value;
+        title.querySelector("small").textContent = `${sensor.samples.length} points · ${value}`;
+        save();
+      });
       const interpolation = dropdown("Profile", sensor.interpolation, [["step", "Step / hold"], ["linear", "Linear"]], value => {
         sensor.interpolation = value;
         refreshChart();
@@ -192,10 +217,20 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
         save();
         sensorList.children[index].querySelector(".env-sample-row:last-child input")?.focus();
       });
-      card.append(heading, fields, graph, samples, addPoint);
+      card.append(heading);
+      if (expanded) {
+        const details = node("div", "env-sensor-details");
+        details.append(fields, graph, samples, addPoint);
+        card.append(details);
+      } else {
+        const preview = node("div", "env-sensor-preview");
+        preview.append(graph);
+        card.append(preview);
+      }
       sensorList.append(card);
     });
     if (!data.sensors.length) sensorList.append(node("div", "env-empty", "No sensors configured"));
+    document.getElementById("sensor-count").textContent = String(data.sensors.length);
   }
 
   function render() {
@@ -206,7 +241,7 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
   render();
   save(false);
   return {
-    load(next) { data = normalizeEnvironment(next, fallback); render(); save(); },
+    load(next) { data = normalizeEnvironment(next, fallback); expandedSensors = new WeakSet(); render(); save(); },
     focus() { (valveList.querySelector("input") || sensorList.querySelector("input") || valveList.parentElement.querySelector("button"))?.focus(); },
     addValve() {
       data.valves.push({ name: "", initial: "CLOSED" });
@@ -215,7 +250,9 @@ export function createEnvironmentEditor({ mapping, valveList, sensorList, initia
       valveList.lastElementChild.querySelector("input")?.focus();
     },
     addSensor() {
-      data.sensors.push({ name: "", unit: "psi", interpolation: "step", samples: [{ at: 0, value: 0 }] });
+      const sensor = { name: "", unit: "psi", interpolation: "step", samples: [{ at: 0, value: 0 }] };
+      data.sensors.push(sensor);
+      expandedSensors.add(sensor);
       renderSensors();
       save();
       sensorList.lastElementChild.querySelector("input")?.focus();

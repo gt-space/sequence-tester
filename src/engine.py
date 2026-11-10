@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import math
+import sys
 import symtable
 import traceback
 import types
@@ -203,15 +204,27 @@ class Simulator:
     def __init__(self, valves, sensors):
         self.time = 0.0
         self.events = []
+        self.initial_valves = dict(valves)
         self.valves = dict(valves)
         self.sensors = sensors
+        self.sensor_read_lines = {}
         self.stage = ""
         self.condition = ""
         self.aborted = False
 
+    @staticmethod
+    def source_line():
+        frame = sys._getframe(1)
+        while frame:
+            if frame.f_code.co_filename == "sequence.py":
+                return frame.f_lineno
+            frame = frame.f_back
+        return 0
+
     def event(self, kind, target, detail):
         if len(self.events) < 300:
-            self.events.append(dict(time=round(self.time, 4), kind=kind, target=target, detail=str(detail)))
+            self.events.append(dict(time=round(self.time, 4), kind=kind,
+                                    target=target, detail=str(detail), line=self.source_line()))
 
     def advance(self, seconds):
         seconds = float(seconds)
@@ -224,6 +237,10 @@ class Simulator:
     def read(self, name):
         if name not in self.sensors:
             raise KeyError(f"Unknown sensor '{name}'")
+        line = self.source_line()
+        if line:
+            lines = self.sensor_read_lines.setdefault(name, set())
+            lines.add(line)
         sensor = self.sensors[name]
         value = sensor["samples"][0]["value"]
         previous = sensor["samples"][0]
@@ -386,7 +403,8 @@ class Simulator:
 def run_sequence(source, mapping, execute=False):
     valves, sensors, diagnostics = check_mapping(mapping)
     result = {"checks": {"syntax": "not_run", "names": "not_run", "api": "not_run", "runtime": "not_run"},
-              "diagnostics": diagnostics, "events": [], "stdout": "", "virtual_time": 0, "valves": {}}
+              "diagnostics": diagnostics, "events": [], "stdout": "", "virtual_time": 0, "valves": {},
+              "simulation": None}
     tree, source_diagnostics = check_source(source, valves, sensors)
     result["diagnostics"].extend(source_diagnostics)
     if tree is None:
@@ -435,4 +453,9 @@ def run_sequence(source, mapping, execute=False):
     result["events"] = sim.events
     result["virtual_time"] = round(sim.time, 4)
     result["valves"] = sim.valves
+    result["simulation"] = {
+        "initial_valves": sim.initial_valves,
+        "sensors": sim.sensors,
+        "sensor_read_lines": {name: sorted(lines) for name, lines in sim.sensor_read_lines.items()},
+    }
     return result

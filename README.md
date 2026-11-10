@@ -42,7 +42,7 @@ Operators configure valves and sensor profiles in the Test Environment tab. Luna
 - Add valves in a compact table and choose their **initial simulation state** (`OPEN` or `CLOSED`). This is not the physical normally-open/normally-closed polarity in Luna's SAM mappings.
 - Add sensors by name and unit. **Time profile** sensors accept timestamped readings with **Step / hold** (default) or **Linear** interpolation.
 - Change the sensor behavior to **Valve-driven** for feedback simulation. Select 1–4 influencing logical valve names and enter an explicit rate (in sensor units per second) for *every* OPEN/CLOSED combination; zero is a valid rate but a blank row is not. Enter the initial reading and optional lower/upper limits. A missing or invalid row prevents simulation.
-- Switch between sequence and environment tabs or show both in split view. The generated JSON is internal and not edited directly.
+- Switch between sequence and environment tabs or show both in split view. Both editors expand vertically with their content, using the browser page for vertical scrolling rather than separate editor scrollbars. Long unwrapped Python lines and wide truth tables can still scroll horizontally. The generated JSON is internal and not edited directly.
 
 The stored configuration has this format (legacy valve-name strings remain supported):
 

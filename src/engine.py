@@ -9,21 +9,10 @@ import symtable
 import traceback
 import types
 
+from luna_contract import API, FUNCTIONS, METHODS, UNIT_CONSTANTS, UNIT_CLASSES, VALVE_STATES
+from luna_validation import analyze_luna_api, validate_abort_expression
 
-API = {
-    "Current", "Duration", "ElectricPotential", "Force", "Pressure", "Temperature",
-    "A", "mA", "s", "ms", "us", "V", "mV", "lbf", "psi", "K",
-    "Sensor", "Valve", "ValveState", "ValveSafeState", "IntervalIterator",
-    "wait_for", "wait_until", "abort", "clear_abort_status", "interval",
-    "create_abort_stage", "set_abort_stage", "curr_abort_stage",
-    "curr_abort_condition", "aborted_in_this_stage", "send_reco_launch",
-    "reco_init_ekf", "read_umbilical_voltage", "reco_recvd_launch",
-    "launch_lug_arm", "launch_lug_detonate", "set_servo_disconnect_abort",
-    "sam_camera_toggle", "OPEN", "CLOSED",
-}
 IMPORTS = {"common", "time", "math"}
-VALVE_METHODS = {"open", "close", "actuate", "is_open", "is_closed", "get_name"}
-SENSOR_METHODS = {"read"}
 UNITS = {"unknown", "psi", "V", "A", "lbf", "K"}
 
 
@@ -122,34 +111,14 @@ def check_source(source, valves, sensors):
                 errors.append(diagnostic("names", "error", f"Undefined name '{node.id}'", node.lineno, node.col_offset + 1))
                 seen.add(node.id)
 
-    kinds = {name: "valve" for name in valves}
-    kinds.update({name: "sensor" for name in sensors})
+    errors.extend(analyze_luna_api(tree, valves, sensors))
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            value = node.value
-            if isinstance(value, ast.Call) and isinstance(value.func, ast.Name) and value.func.id in {"Valve", "Sensor"}:
-                kind = value.func.id.lower()
-                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                for target in targets:
-                    if isinstance(target, ast.Name):
-                        kinds[target.id] = kind
         if isinstance(node, ast.Import):
             for item in node.names:
                 if item.name.split(".")[0] not in IMPORTS:
                     errors.append(diagnostic("runtime", "warning", f"Import '{item.name}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
         if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] not in IMPORTS:
             errors.append(diagnostic("runtime", "warning", f"Import '{node.module}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
-            name, method = node.func.value.id, node.func.attr
-            kind = kinds.get(name)
-            if kind and method not in (VALVE_METHODS if kind == "valve" else SENSOR_METHODS):
-                errors.append(diagnostic("api", "error", f"{kind.title()} '{name}' does not support .{method}()", node.lineno, node.col_offset + 1))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"Valve", "Sensor"}:
-            if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
-                name = node.args[0].value
-                pool = valves if node.func.id == "Valve" else sensors
-                if name not in pool:
-                    errors.append(diagnostic("api", "error", f"{node.func.id} '{name}' is not in the selected mapping", node.lineno, node.col_offset + 1))
     return tree, errors
 
 
@@ -200,6 +169,10 @@ class SimulationLimit(Exception):
     pass
 
 
+class SequenceAborted(BaseException):
+    """The FC would terminate the operator sequence after an abort."""
+
+
 class Simulator:
     def __init__(self, valves, sensors):
         self.time = 0.0
@@ -208,9 +181,16 @@ class Simulator:
         self.valves = dict(valves)
         self.sensors = sensors
         self.sensor_read_lines = {}
-        self.stage = ""
-        self.condition = ""
+        self.stage = "DEFAULT"
+        self.condition = "False"
         self.aborted = False
+        self.abort_scope = None
+        self.abort_stages = {
+            "DEFAULT": dict(name="DEFAULT", condition="False", safe={}, defined_line=0,
+                            activated=[0.0], triggered=None, code=compile("False", "<abort>", "eval")),
+        }
+        self.pending_safe_states = []
+        self.abort_eval_line = 0
 
     @staticmethod
     def source_line():
@@ -221,10 +201,73 @@ class Simulator:
             frame = frame.f_back
         return 0
 
-    def event(self, kind, target, detail):
-        if len(self.events) < 300:
+    def event(self, kind, target, detail, *, line=None, **extra):
+        if len(self.events) < 1000:
             self.events.append(dict(time=round(self.time, 4), kind=kind,
-                                    target=target, detail=str(detail), line=self.source_line()))
+                                    target=target, detail=str(detail),
+                                    line=self.source_line() if line is None else line, **extra))
+
+    def define_abort_stage(self, name, condition, states, line):
+        if not isinstance(name, str) or not isinstance(condition, str):
+            raise TypeError("create_abort_stage expects stage_name and abort_condition strings")
+        code, problems = validate_abort_expression(condition, self.valves, self.sensors,
+                                                    ast.parse("False", mode="eval").body)
+        if problems:
+            raise ValueError("; ".join(item["message"] for item in problems))
+        self.abort_stages[name] = dict(
+            name=name, condition=condition, code=code, safe=dict(states),
+            defined_line=line, activated=[], triggered=None,
+        )
+        self.event("abort_config", name, f"Condition: {condition} · {len(states)} safe-state commands", line=line)
+
+    def activate_abort_stage(self, name, line):
+        if not isinstance(name, str):
+            raise TypeError("set_abort_stage expects a string")
+        if name not in self.abort_stages:
+            raise ValueError(f"Unknown abort stage '{name}' (not created)")
+        self.stage = name
+        self.condition = self.abort_stages[name]["condition"]
+        self.abort_stages[name]["activated"].append(round(self.time, 4))
+        self.event("abort_stage", name, f"Active condition: {self.condition}", line=line)
+        self.check_abort_condition()
+
+    def trigger_abort(self, reason, line=None):
+        if self.aborted:
+            return
+        self.aborted = True
+        stage = self.abort_stages[self.stage]
+        stage["triggered"] = round(self.time, 4)
+        self.event("abort", self.stage, reason, line=line, condition=stage["condition"])
+        for name, (state, delay_ms) in stage["safe"].items():
+            self.pending_safe_states.append((self.time + delay_ms / 1000, name, state,
+                                             stage["defined_line"], delay_ms))
+        self.apply_safe_states(self.time)
+
+    def apply_safe_states(self, until):
+        self.pending_safe_states.sort(key=lambda item: item[0])
+        while self.pending_safe_states and self.pending_safe_states[0][0] <= until + 1e-9:
+            at, name, state, line, delay_ms = self.pending_safe_states.pop(0)
+            self.time = max(self.time, at)
+            self.valves[name] = state
+            self.event("valve", name, state, line=line, origin="abort", stage=self.stage)
+            self.event("abort_safe", name, f"{state} after {delay_ms} ms safing delay",
+                       line=line, stage=self.stage)
+
+    def check_abort_condition(self):
+        if self.aborted or self.stage == "DEFAULT" or self.abort_scope is None:
+            return
+        stage = self.abort_stages[self.stage]
+        try:
+            self.abort_eval_line = stage["defined_line"]
+            result = bool(eval(stage["code"], {"__builtins__": {}}, self.abort_scope))
+        except Exception as error:
+            raise RuntimeError(f"Abort stage '{self.stage}' condition failed: {error}") from error
+        finally:
+            self.abort_eval_line = 0
+        if result:
+            self.trigger_abort(f"Condition became true: {stage['condition']}",
+                               line=stage["defined_line"])
+            raise SequenceAborted(f"Abort condition triggered in stage '{self.stage}'")
 
     def advance(self, seconds):
         seconds = float(seconds)
@@ -232,12 +275,34 @@ class Simulator:
             raise ValueError("Wait duration must be finite and nonnegative")
         if self.time + seconds > 3600:
             raise SimulationLimit("Simulation exceeded one hour of virtual time")
-        self.time += seconds
+        end = self.time + seconds
+        if not self.aborted and self.stage != "DEFAULT" and self.abort_scope is not None:
+            # flight2's abort worker polls its condition every 10 ms. Advance
+            # virtual time in the same cadence, including during wait_for.
+            while self.time < end - 1e-10:
+                self.time = min(end, round(self.time + 0.01, 6))
+                self.check_abort_condition()
+        else:
+            self.time = end
+
+    def finish(self):
+        # The SAM safe-state timers continue after the FC kills the sequence.
+        if self.pending_safe_states:
+            self.apply_safe_states(max(item[0] for item in self.pending_safe_states))
+
+    def coverage(self):
+        return [{
+            "name": item["name"], "condition": item["condition"],
+            "defined_line": item["defined_line"], "activated": item["activated"],
+            "triggered": item["triggered"],
+            "safe_states": [{"name": name, "state": state, "delay_ms": delay}
+                            for name, (state, delay) in item["safe"].items()],
+        } for item in self.abort_stages.values() if item["name"] != "DEFAULT"]
 
     def read(self, name):
         if name not in self.sensors:
             raise KeyError(f"Unknown sensor '{name}'")
-        line = self.source_line()
+        line = self.abort_eval_line or self.source_line()
         if line:
             lines = self.sensor_read_lines.setdefault(name, set())
             lines.add(line)
@@ -259,19 +324,29 @@ class Simulator:
         module = types.ModuleType("common")
 
         class ValveState:
+            Undetermined = "UNDETERMINED"
+            Disconnected = "DISCONNECTED"
             Open = "OPEN"
             Closed = "CLOSED"
+            Fault = "FAULT"
 
         class Valve:
             def __init__(self, name):
+                if not isinstance(name, str):
+                    raise TypeError("Valve name must be a string")
                 if name not in sim.valves:
                     raise KeyError(f"Unknown valve '{name}'")
                 self.name = name
 
-            def get_name(self):
-                return self.name
+            def __hash__(self):
+                return hash(self.name)
+
+            def __eq__(self, other):
+                return isinstance(other, Valve) and self.name == other.name
 
             def actuate(self, opening):
+                if type(opening) is not bool:
+                    raise TypeError("Valve.actuate(open) requires a bool")
                 state = "OPEN" if opening else "CLOSED"
                 sim.valves[self.name] = state
                 sim.event("valve", self.name, state)
@@ -290,6 +365,8 @@ class Simulator:
 
         class Sensor:
             def __init__(self, name):
+                if not isinstance(name, str):
+                    raise TypeError("Sensor name must be a string")
                 if name not in sim.sensors:
                     raise KeyError(f"Unknown sensor '{name}'")
                 self.name = name
@@ -335,6 +412,8 @@ class Simulator:
                 calls += 1
 
         def interval(count, period):
+            if type(count) is not int:
+                raise TypeError("interval count must be an integer")
             if not isinstance(period, Quantity) or period.kind != "s":
                 raise TypeError("interval expects a Duration")
             start = sim.time
@@ -345,23 +424,34 @@ class Simulator:
         def send(name, *args):
             sim.event("command", name, ", ".join(map(str, args)))
 
+        def strict_bool(value):
+            if type(value) is not bool:
+                raise TypeError("Luna expects a boolean argument")
+            return value
+
+        def strict_string(value):
+            if not isinstance(value, str):
+                raise TypeError("Luna expects a string argument")
+            return value
+
         def create_abort_stage(name, condition, safe_states):
             if not isinstance(safe_states, dict):
                 raise TypeError("safe_valve_states must be a dictionary")
+            checked = {}
             for valve, state in safe_states.items():
                 if not isinstance(valve, Valve) or not isinstance(state, tuple) or len(state) != 2:
                     raise TypeError("Each safe state must map Valve to (ValveState, timer)")
-                if state[0] not in (ValveState.Open, ValveState.Closed) or not isinstance(state[1], int) or state[1] < 0:
-                    raise TypeError("Safe states require OPEN/CLOSED and a nonnegative integer timer")
-            send("create_abort_stage", name, condition, f"{len(safe_states)} valve states")
+                if state[0] not in (ValveState.Open, ValveState.Closed) or type(state[1]) is not int or not 0 <= state[1] <= 0xFFFFFFFF:
+                    raise TypeError("Safe states require OPEN/CLOSED and a u32 millisecond timer")
+                checked[valve.name] = state
+            sim.define_abort_stage(name, condition, checked, sim.source_line())
 
         def set_abort_stage(name):
-            sim.stage = name
-            sim.event("abort_stage", name, "Transition simulated, not hardware-confirmed")
+            sim.activate_abort_stage(name, sim.source_line())
 
         def abort():
-            sim.aborted = True
-            send("abort", "Abort requested")
+            sim.trigger_abort("Manual abort requested", line=sim.source_line())
+            raise SequenceAborted("Operator sequence terminated after abort")
 
         def clear_abort_status():
             sim.aborted = False
@@ -381,10 +471,11 @@ class Simulator:
             "reco_init_ekf": lambda: send("reco_init_ekf"),
             "read_umbilical_voltage": lambda: Quantity(0, "V"),
             "reco_recvd_launch": lambda: False,
-            "launch_lug_arm": lambda host, enabled: send("launch_lug_arm", host, enabled),
-            "launch_lug_detonate": lambda host, enabled: send("launch_lug_detonate", host, enabled),
-            "set_servo_disconnect_abort": lambda enabled: send("set_servo_disconnect_abort", enabled),
-            "sam_camera_toggle": lambda enabled: send("sam_camera_toggle", enabled),
+            "launch_lug_arm": lambda host, enabled: send("launch_lug_arm", strict_string(host), strict_bool(enabled)),
+            "launch_lug_detonate": lambda host, enabled: send("launch_lug_detonate", strict_string(host), strict_bool(enabled)),
+            "set_servo_disconnect_abort": lambda enabled: send("set_servo_disconnect_abort", strict_bool(enabled)),
+            "sam_camera_toggle": lambda enabled: send("sam_camera_toggle", strict_bool(enabled)),
+            "__layout_fingerprint__": "mock-layout-not-real-fc",
         }
         for name, kind in (("Current", "A"), ("Duration", "s"), ("ElectricPotential", "V"),
                            ("Force", "lbf"), ("Pressure", "psi"), ("Temperature", "K")):
@@ -440,15 +531,33 @@ def run_sequence(source, mapping, execute=False):
         scope[name] = common.Valve(name)
     for name in sensors:
         scope[name] = common.Sensor(name)
+    # Luna runs abort conditions in a distinct Python process with the same
+    # mapping prelude, NOT the parent sequence's local variables.
+    sim.abort_scope = {name: scope[name] for name in API if name in scope}
+    sim.abort_scope.update({name: scope[name] for name in (*valves, *sensors)})
+    sim.abort_scope.update({name: safe[name] for name in
+                            ("abs", "min", "max", "round", "int", "float", "bool")})
     output = io.StringIO()
     try:
         with contextlib.redirect_stdout(output):
             exec(compile(tree, "sequence.py", "exec"), scope, scope)
         result["checks"]["runtime"] = "pass"
+    except SequenceAborted:
+        result["checks"]["runtime"] = "pass"
     except BaseException as error:
         line = next((frame.lineno for frame in reversed(traceback.extract_tb(error.__traceback__)) if frame.filename == "sequence.py"), 0)
         result["checks"]["runtime"] = "fail"
         result["diagnostics"].append(diagnostic("runtime", "error", f"{type(error).__name__}: {error}", line))
+    sim.finish()
+    for stage in sim.coverage():
+        if not stage["activated"]:
+            result["diagnostics"].append(diagnostic(
+                "abort", "warning", f"ABORT STAGE NOT ACTIVATED: '{stage['name']}' was defined but never selected",
+                stage["defined_line"]))
+        elif stage["triggered"] is None:
+            result["diagnostics"].append(diagnostic(
+                "abort", "warning", f"ABORT CONDITION NEVER TRIGGERED: '{stage['name']}' ({stage['condition']}) did not fire with these sensor profiles",
+                stage["defined_line"]))
     result["stdout"] = output.getvalue()[:10000]
     result["events"] = sim.events
     result["virtual_time"] = round(sim.time, 4)
@@ -457,5 +566,7 @@ def run_sequence(source, mapping, execute=False):
         "initial_valves": sim.initial_valves,
         "sensors": sim.sensors,
         "sensor_read_lines": {name: sorted(lines) for name, lines in sim.sensor_read_lines.items()},
+        "abort_stages": sim.coverage(),
+        "aborted": sim.aborted,
     }
     return result

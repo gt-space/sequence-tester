@@ -6,6 +6,9 @@ const EXAMPLES = {
   vespula: "# tank pre press sequence\nimport time\nprint('Pre Press Sequence has begun')\n\n# define pressure variables\nftpt_target = 416*psi # psia, target fuel tank pressure\notpt_target = 357*psi # psia, target lox tank pressure\nupRan = 2*psi # psi, upper range bound for bang bang algorithm\nlowRan = 3*psi # psi, lower range bound for bang bang algorithm\n\n# time variables\npress_time = 20 # s, sequence duration\nwait_timing = 5 # ms\n\n# confirm switch closed\nFSWV.close()\nOSWV.close()\nwait_for(wait_timing*ms)\n\n# initialize valve state variables\nFBB.close()\nFBBopen = False # hardcoded for consistency\nOBB.close()\nOBBopen = False # hardcoded due to feedback issues on sam-21\n\nstart_time = time.time() # s, current time\n\n# press tanks with bang bang algorithm\nwhile time.time() < start_time + press_time:\n\t# check pressures\n\tcurrFTPT = FTPT.read()\n\tcurrOTPT = OTPT.read()\n\t# bang bang algorithm\n\tif FBBopen and currFTPT > ftpt_target + upRan:\n\t\tFBB.close()\n\t\tFBBopen = False\n\telif (not FBBopen) and currFTPT < ftpt_target - lowRan:\n\t\tFBB.open()\n\t\tFBBopen = True\n\tif OBBopen and currOTPT > otpt_target + upRan:\n\t\tOBB.close()\n\t\tOBBopen = False\n\telif (not OBBopen) and currOTPT < otpt_target - lowRan:\n\t\tOBB.open()\n\t\tOBBopen = True\n\twait_for(wait_timing*ms)\n\nOBB.close()\nFBB.close()\n\nprint('Pre Press Sequence has ended')",
   tank: `press_valve.open()\nwait_until(lambda: tank_pt.read() >= 300 * psi, 5 * s)\npress_valve.close()\nprint("Tank press sequence finished")`,
   pulse: `press_valve.open()\nwait_for(500 * ms)\npress_valve.close()\nwait_for(250 * ms)\nvent_valve.open()\nwait_for(250 * ms)\nvent_valve.close()`,
+  abort: `# Abort triggers when the configured tank pressure exceeds 250 psi\ncreate_abort_stage(\n    "PRESSURIZATION",\n    "tank_pt > 250*psi",\n    {press_valve: (CLOSED, 500), vent_valve: (OPEN, 1000)}\n)\nset_abort_stage("PRESSURIZATION")\npress_valve.open()\nwait_for(5*s)\nprint("Only reached if the abort condition never triggers")`,
+  abort_two: `# Adapted from YJSP Notion's GROUND and FILLING examples.\n# Demonstration thresholds only; not approved operational limits.\n# Safing timers are integer MILLISECONDS in current Luna.\ncreate_abort_stage(\n    "GROUND",\n    "PT.read() > 50*psi",\n    {press_valve: (CLOSED, 0), vent_valve: (OPEN, 0)}\n)\ncreate_abort_stage(\n    "FILLING",\n    "load_cell.read() > 40*lbf",\n    {press_valve: (CLOSED, 5000), vent_valve: (OPEN, 0)}\n)\nset_abort_stage("GROUND")\nwait_for(1*s)\nset_abort_stage("FILLING")\npress_valve.open()\nwait_for(5*s)\nprint("No abort triggered")`,
+  vespula_abort: `# Historical Vespula abort sequence excerpt from YJSP Notion.\n# Demonstration only; this is NOT an approved live abort procedure.\nimport time\nfmv_time = 0.06\nomv_time = 0.125\nlox_close_lead = 0.1\nlox_close_wait = omv_time + lox_close_lead - fmv_time\nwait_timing = 5  # ms\n\nOBB.close()\nFBB.close()\nOSWV.close()\nFSWV.close()\nOMV.close()\n\nstart_time = time.time()\nwhile time.time() < start_time + lox_close_wait:\n    wait_for(wait_timing*ms)\n\nFMV.close()\nOVNT.open()\nFVNT.open()\nprint("Historical abort excerpt finished")`,
   import: `press_valve.open()\ntime.sleep(1)\npress_valve.close()`,
   api: `tank_pt.open()\npress_valve.open()\nwait_for(500 * ms)\npress_valve.close()`
 };
@@ -21,6 +24,32 @@ const VESPULA_MAPPING = {
     { name: "FTPT", unit: "psi", samples: [{ at: 0, value: 400 }, { at: 1, value: 420 }, { at: 5, value: 405 }, { at: 10, value: 421 }] },
     { name: "OTPT", unit: "psi", samples: [{ at: 0, value: 330 }, { at: 1, value: 360 }, { at: 5, value: 340 }, { at: 10, value: 361 }] }
   ]
+};
+
+const ABORT_TWO_MAPPING = {
+  valves: ["press_valve", "vent_valve"],
+  sensors: [
+    { name: "PT", unit: "psi", interpolation: "linear",
+      samples: [{ at: 0, value: 30 }, { at: 1, value: 40 }, { at: 3, value: 45 }] },
+    { name: "load_cell", unit: "lbf", interpolation: "linear",
+      samples: [{ at: 0, value: 0 }, { at: 1, value: 15 }, { at: 3, value: 50 }] }
+  ]
+};
+
+const VESPULA_ABORT_MAPPING = {
+  valves: [
+    { name: "OBB", initial: "OPEN" }, { name: "FBB", initial: "OPEN" },
+    { name: "OSWV", initial: "OPEN" }, { name: "FSWV", initial: "OPEN" },
+    { name: "OMV", initial: "OPEN" }, { name: "FMV", initial: "OPEN" },
+    { name: "OVNT", initial: "CLOSED" }, { name: "FVNT", initial: "CLOSED" }
+  ],
+  sensors: []
+};
+
+const EXAMPLE_MAPPINGS = {
+  vespula: VESPULA_MAPPING,
+  abort_two: ABORT_TWO_MAPPING,
+  vespula_abort: VESPULA_ABORT_MAPPING
 };
 
 const $ = id => document.getElementById(id);
@@ -120,7 +149,12 @@ function makeWorker() {
       running = false;
       pending = null;
       render(data.result);
-      setStatus("Check complete", "success");
+      const issues = data.result.diagnostics || [];
+      const errors = issues.filter(item => item.severity === "error").length;
+      const warnings = issues.filter(item => item.severity === "warning").length;
+      setStatus(errors ? `${errors} error(s) · ${warnings} warning(s)` :
+        warnings ? `Check complete · ${warnings} warning(s)` : "Check complete",
+      errors ? "error" : warnings ? "warning" : "success");
     } else if (data.type === "failure") {
       if (data.id !== currentId) return;
       clearTimeout(executionTimeout);
@@ -203,8 +237,9 @@ function invalidateResults() {
 function render(result) {
   const stages = result.checks || {};
   const failed = Object.values(stages).includes("fail");
-  $("validation-state").textContent = failed ? "ISSUES FOUND" : "CHECKED";
-  $("validation-state").dataset.state = failed ? "fail" : "pass";
+  const hasWarnings = (result.diagnostics || []).some(item => item.severity === "warning");
+  $("validation-state").textContent = failed ? "ISSUES FOUND" : hasWarnings ? "WARNINGS" : "CHECKED";
+  $("validation-state").dataset.state = failed ? "fail" : hasWarnings ? "warning" : "pass";
   for (const [name, state] of Object.entries(stages)) {
     const el = document.querySelector(`[data-check="${name}"]`);
     if (!el) continue;
@@ -348,7 +383,7 @@ $("validate").onclick = () => run("validate");
 $("simulate").onclick = () => run("simulate");
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
-  environment.load(button.dataset.example === "vespula" ? VESPULA_MAPPING : DEFAULT_MAPPING);
+  environment.load(EXAMPLE_MAPPINGS[button.dataset.example] || DEFAULT_MAPPING);
   updateEditor();
   source.focus();
   source.setSelectionRange(0, 0);

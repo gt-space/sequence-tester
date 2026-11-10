@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 8 * * *' # Daily API drift detection against gt-space/luna main
 
 permissions:
   contents: read
@@ -19,6 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Checkout current Luna API
+        run: git clone --depth=1 --branch=main https://github.com/gt-space/luna.git /tmp/luna-api
+      - name: Verify Python contract still matches Luna main
+        run: python scripts/check_luna_contract.py /tmp/luna-api
       - name: Python regression tests
         run: python -m unittest discover -s tests -v
       - name: JavaScript syntax
@@ -28,7 +35,7 @@ jobs:
           node --check src/highlight.js
           node --check src/timeline.js
           node --check src/worker.js
-          node --test tests/test_environment.mjs tests/test_timeline.mjs
+          node --test tests/test_environment.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
 
   deploy:
     if: github.event_name == 'push'
@@ -50,7 +57,7 @@ jobs:
         run: |
           mkdir -p site-dist/src
           cp index.html site-dist/
-          cp src/app.js src/environment.js src/highlight.js src/timeline.js src/worker.js src/styles.css src/engine.py src/yjsplogo.png site-dist/src/
+          cp src/app.js src/environment.js src/highlight.js src/timeline.js src/worker.js src/styles.css src/engine.py src/luna_contract.py src/luna_validation.py src/yjsplogo.png site-dist/src/
           cp -r /tmp/sequence-pyodide/node_modules/pyodide site-dist/src/pyodide
           sed -i "s|./src/app.js|./src/app.js?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./src/styles.css|./src/styles.css?build=${GITHUB_SHA}|" site-dist/index.html

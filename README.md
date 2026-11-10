@@ -91,7 +91,7 @@ Simulation runs with a continuous clock. The speed and duration limit are set in
 
 The output shows simulated seconds, wall-clock seconds, target speed, measured effective speed, and wait overshoot. These are simulator timing diagnostics, not a measurement of Luna's real hardware scheduler or control-loop response time. Browser scheduling and Pyodide execution can introduce jitter, especially at high acceleration.
 
-During simulation, a circular rocket-themed timer fills according to simulated time used relative to the configured safety timeout. The live T+ clock and elapsed wall time remain visible throughout the run. The ring represents elapsed time, not estimated sequence completion, because the script may contain sensor-driven loops with unknown duration.
+During simulation, a rocket-themed circular activity indicator spins until the run finishes or stops, then becomes a static green or red ring. The live T+ clock and elapsed wall time remain visible throughout the run. No completion percentage is estimated for sequences with sensor-driven loops of unknown duration.
 
 The Python engine retains a deterministic clock for automated regression tests. It is intentionally not selectable in the website because a Luna sequence with a tight sensor-polling loop can stall when time only advances on explicit waits.
 

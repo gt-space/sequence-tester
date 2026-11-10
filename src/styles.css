@@ -207,9 +207,10 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .flight-title { display: inline-flex; align-items: center; gap: 9px; color: #e8c36b; font-size: 10px; letter-spacing: .11em; font-weight: 800; }
 .flight-header strong { font: 800 25px Consolas, monospace; color: #f0c15d; white-space: nowrap; }
 .flight-pulse { width: 8px; height: 8px; border-radius: 50%; background: #f4bc47; box-shadow: 0 0 13px #e0a500aa; animation: flight-pulse 1.2s ease-in-out infinite; }
-.flight-dial { --flight-sweep: 0deg; --flight-color: #e0a500; position: relative; display: grid; flex: 0 0 98px; place-items: center; width: 98px; height: 98px; border-radius: 50%; background: conic-gradient(from -90deg, var(--flight-color) 0deg var(--flight-sweep), #34443b var(--flight-sweep) 360deg); box-shadow: 0 0 0 1px #57634b55, 0 0 24px #b1892930; }
-.flight-dial::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: radial-gradient(circle at 55% 40%, #28352c, #111e1b 70%); box-shadow: inset 0 0 15px #0009; }
-.flight-dial-core { position: relative; z-index: 1; display: grid; place-items: center; width: 100%; height: 100%; }
+.flight-dial { --flight-color: #e0a500; position: relative; display: grid; flex: 0 0 98px; place-items: center; width: 98px; height: 98px; border-radius: 50%; background: #34443b; box-shadow: 0 0 0 1px #57634b55, 0 0 24px #b1892930; }
+.flight-dial::before { content: ""; position: absolute; z-index: 1; inset: 8px; border-radius: 50%; background: radial-gradient(circle at 55% 40%, #28352c, #111e1b 70%); box-shadow: inset 0 0 15px #0009; }
+.flight-dial::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--flight-color), #c4933d77 70deg, transparent 135deg); animation: flight-spin 1.2s linear infinite; }
+.flight-dial-core { position: relative; z-index: 2; display: grid; place-items: center; width: 100%; height: 100%; }
 .flight-rocket { display: block; font-size: 34px; line-height: 1; filter: drop-shadow(0 0 8px #e9aa4b88); animation: flight-hover .8s ease-in-out infinite alternate; }
 .flight-footer { display: flex; flex-wrap: wrap; gap: 5px 18px; color: #c0b38c; font: 11px Consolas, monospace; }
 .flight-progress[data-phase="complete"] .flight-pulse { animation: none; background: #8fdfa9; box-shadow: 0 0 12px #8fdfa955; }
@@ -218,10 +219,12 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .flight-progress[data-phase="stopped"] .flight-title { color: #f0a89b; }
 .flight-progress[data-phase="complete"] .flight-dial { --flight-color: #8fdfa9; }
 .flight-progress[data-phase="stopped"] .flight-dial { --flight-color: #f29e8e; }
+.flight-progress[data-phase="complete"] .flight-dial::after, .flight-progress[data-phase="stopped"] .flight-dial::after { animation: none; background: var(--flight-color); }
 .flight-progress[data-phase="complete"] .flight-rocket, .flight-progress[data-phase="stopped"] .flight-rocket { animation: none; }
 @keyframes flight-pulse { 50% { opacity: .45; box-shadow: 0 0 3px #e0a50066; } }
 @keyframes flight-hover { to { transform: translateY(-4px) rotate(-5deg); } }
-@media (prefers-reduced-motion: reduce) { .flight-pulse, .flight-rocket { animation: none; } }
+@keyframes flight-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .flight-pulse, .flight-rocket, .flight-dial::after { animation: none; } }
 
 .side-panel { min-width: 0; display: flex; flex-direction: column; background: #14201e; }
 .side-section { padding: 19px; border-bottom: 1px solid #2b3934; }

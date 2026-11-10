@@ -56,7 +56,6 @@ function updateFlight(simulated, wall, phase = "running") {
   if (!flightRun) return;
   const { limit, speed } = flightRun;
   const seconds = Math.max(0, simulated);
-  const fraction = Math.min(1, seconds / limit);
   const progress = $("flight-progress");
   progress.dataset.phase = phase;
   $("flight-phase").textContent = phase === "running" ? "SIMULATION IN PROGRESS" :
@@ -64,11 +63,6 @@ function updateFlight(simulated, wall, phase = "running") {
   $("flight-elapsed").textContent = `T+ ${seconds.toFixed(1)}s`;
   $("flight-wall").textContent = `${Math.max(0, wall).toFixed(1)}s wall time · ${speed}× speed`;
   $("flight-limit").textContent = `${limit}s simulation limit`;
-  const track = $("flight-track");
-  track.style.setProperty("--flight-sweep", `${fraction * 360}deg`);
-  track.setAttribute("aria-valuemax", String(limit));
-  track.setAttribute("aria-valuenow", String(Math.min(limit, Number(seconds.toFixed(1)))));
-  track.setAttribute("aria-valuetext", `${seconds.toFixed(1)} simulated seconds of ${limit} second limit`);
 }
 
 function startFlight(request) {

@@ -31,7 +31,9 @@ function makeWorker() {
   if (worker) worker.terminate();
   clearTimeout(startupTimeout);
   clearTimeout(executionTimeout);
-  worker = new Worker(new URL("./worker.js", import.meta.url));
+  const workerUrl = new URL("./worker.js", import.meta.url);
+  workerUrl.search = new URL(import.meta.url).search;
+  worker = new Worker(workerUrl);
   ready = false;
   setStatus("Loading Python runtime…");
   startupTimeout = setTimeout(() => {

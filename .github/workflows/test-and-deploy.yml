@@ -48,6 +48,7 @@ jobs:
           cp index.html site-dist/
           cp src/app.js src/worker.js src/styles.css src/engine.py site-dist/src/
           cp -r /tmp/sequence-pyodide/node_modules/pyodide site-dist/src/pyodide
+          sed -i "s|./src/app.js|./src/app.js?build=${GITHUB_SHA}|" site-dist/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site-dist

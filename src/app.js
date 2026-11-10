@@ -21,6 +21,7 @@ let pending = null;
 let executionTimeout;
 let startupTimeout;
 let running = false;
+let startupPhase = "Loading Python runtime…";
 
 function setStatus(message, level = "normal") {
   status.textContent = message;
@@ -35,14 +36,19 @@ function makeWorker() {
   workerUrl.search = new URL(import.meta.url).search;
   worker = new Worker(workerUrl);
   ready = false;
-  setStatus("Loading Python runtime…");
+  startupPhase = "Loading Python runtime…";
+  setStatus(startupPhase);
   startupTimeout = setTimeout(() => {
-    setStatus("Python runtime unavailable. Check network access and reload.", "error");
+    setStatus(`Python startup timed out: ${startupPhase}. Try again.`, "error");
     worker.terminate();
+    worker = null;
     pending = null;
   }, 45000);
   worker.onmessage = ({ data }) => {
-    if (data.type === "ready") {
+    if (data.type === "progress") {
+      startupPhase = data.message;
+      setStatus(startupPhase);
+    } else if (data.type === "ready") {
       clearTimeout(startupTimeout);
       ready = true;
       setStatus("Python runtime ready", "success");
@@ -50,6 +56,8 @@ function makeWorker() {
     } else if (data.type === "startup-error") {
       clearTimeout(startupTimeout);
       setStatus(`Runtime unavailable: ${data.message}`, "error");
+      worker.terminate();
+      worker = null;
     } else if (data.type === "result") {
       if (data.id !== currentId) return;
       clearTimeout(executionTimeout);
@@ -69,6 +77,8 @@ function makeWorker() {
     clearTimeout(startupTimeout);
     clearTimeout(executionTimeout);
     setStatus(`Runtime error: ${event.message}`, "error");
+    worker.terminate();
+    worker = null;
   };
 }
 
@@ -93,6 +103,7 @@ function run(mode) {
   const request = { id: ++currentId, mode, source: source.value, mapping: mapping.value };
   localStorage.setItem("yjsp-sequence-source", source.value);
   localStorage.setItem("yjsp-sequence-mapping", mapping.value);
+  if (!worker) makeWorker();
   if (running) {
     makeWorker();
     pending = request;

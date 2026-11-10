@@ -128,7 +128,7 @@ export function createTimelineView({ container, onJumpToSource }) {
 
   function marker(event, index, cy) {
     const hit = svg("circle", {
-      cx: xAt(event.time), cy, r: 8, class: `timeline-event-dot${selectedEvent === index || (selectedLine && event.line === selectedLine) ? " selected" : ""}`,
+      cx: xAt(event.time), cy, r: 8, class: `timeline-event-dot ${event.detail === "OPEN" ? "valve-open" : "valve-closed"}${selectedEvent === index || (selectedLine && event.line === selectedLine) ? " selected" : ""}`,
       tabindex: event.line ? 0 : -1, role: event.line ? "button" : "img",
       "aria-label": `${event.target} ${event.detail} at ${displayTime(event.time)}${event.line ? `, source line ${event.line}` : ""}`,
       "data-event-index": index
@@ -165,15 +165,29 @@ export function createTimelineView({ container, onJumpToSource }) {
       chart.append(svg("line", { x1: LEFT, x2: RIGHT, y1: lo, y2: lo, class: "timeline-rail" }));
       const changes = payload.events.map((event, eventIndex) => ({ ...event, eventIndex }))
         .filter(event => event.kind === "valve" && event.target === name);
-      let state = payload.initial_valves[name];
-      let path = `M${LEFT} ${state === "OPEN" ? hi : lo}`;
+      let state = payload.initial_valves[name] || "CLOSED";
+      let previousTime = 0;
+      const yForState = value => value === "OPEN" ? hi : lo;
+      const drawSegment = (from, to, value) => {
+        if (to <= from) return;
+        chart.append(svg("path", {
+          d: `M${xAt(from)} ${yForState(value)} H${xAt(to)}`,
+          class: `timeline-valve-line ${value === "OPEN" ? "valve-open" : "valve-closed"}`
+        }));
+      };
       for (const event of changes) {
         const x = xAt(event.time);
-        path += ` H${x} V${event.detail === "OPEN" ? hi : lo}`;
+        drawSegment(previousTime, event.time, state);
+        if (event.detail !== state) {
+          chart.append(svg("path", {
+            d: `M${x} ${yForState(state)} V${yForState(event.detail)}`,
+            class: `timeline-valve-line ${event.detail === "OPEN" ? "valve-open" : "valve-closed"}`
+          }));
+        }
         state = event.detail;
+        previousTime = event.time;
       }
-      path += ` H${RIGHT}`;
-      chart.append(svg("path", { d: path, class: "timeline-valve-line" }));
+      drawSegment(previousTime, duration, state);
       for (const event of changes) chart.append(marker(event, event.eventIndex, event.detail === "OPEN" ? hi : lo));
     });
     chart.append(overlays.at(-1).overlay);

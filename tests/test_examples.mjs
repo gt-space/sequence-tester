@@ -44,13 +44,10 @@ test("the Notion-derived two-stage example triggers its second stage", () => {
   assert.ok(result.diagnostics.some(d => d.message.includes("ABORT CONDITION NEVER TRIGGERED: 'GROUND'")));
 });
 
-test("the historical Vespula abort excerpt runs as a manual-command trace", () => {
-  const result = simulate("vespula_abort");
+test("the single abort-stage example triggers from a valve-driven sensor", () => {
+  const result = simulate("abort");
   assert.equal(result.checks.api, "pass", JSON.stringify(result.diagnostics));
   assert.equal(result.checks.runtime, "pass", JSON.stringify(result.diagnostics));
-  assert.equal(result.simulation.aborted, false);
-  const valveEvents = result.events.filter(event => event.kind === "valve");
-  assert.deepEqual(valveEvents.map(event => event.target),
-    ["OBB", "FBB", "OSWV", "FSWV", "OMV", "FMV", "OVNT", "FVNT"]);
-  assert.ok(valveEvents.find(event => event.target === "FMV").time > 0.16);
+  assert.equal(result.simulation.aborted, true);
+  assert.equal(configurations.maps.abort.sensors[0].mode, "valve");
 });

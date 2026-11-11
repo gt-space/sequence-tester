@@ -10,7 +10,6 @@ const EXAMPLES = {
   pulse: `press_valve.open()\nwait_for(500 * ms)\npress_valve.close()\nwait_for(250 * ms)\nvent_valve.open()\nwait_for(250 * ms)\nvent_valve.close()`,
   abort: `# Abort triggers when the configured tank pressure exceeds 250 psi\ncreate_abort_stage(\n    "PRESSURIZATION",\n    "tank_pt > 250*psi",\n    {press_valve: (CLOSED, 500), vent_valve: (OPEN, 1000)}\n)\nset_abort_stage("PRESSURIZATION")\npress_valve.open()\nwait_for(5*s)\nprint("Only reached if the abort condition never triggers")`,
   abort_two: `# Adapted from YJSP Notion's GROUND and FILLING examples.\n# Demonstration thresholds only; not approved operational limits.\n# Safing timers are integer MILLISECONDS in current Luna.\ncreate_abort_stage(\n    "GROUND",\n    "PT.read() > 50*psi",\n    {press_valve: (CLOSED, 0), vent_valve: (OPEN, 0)}\n)\ncreate_abort_stage(\n    "FILLING",\n    "load_cell.read() > 40*lbf",\n    {press_valve: (CLOSED, 5000), vent_valve: (OPEN, 0)}\n)\nset_abort_stage("GROUND")\nwait_for(1*s)\nset_abort_stage("FILLING")\npress_valve.open()\nwait_for(5*s)\nprint("No abort triggered")`,
-  vespula_abort: `# Historical Vespula abort sequence excerpt from YJSP Notion.\n# Demonstration only; this is NOT an approved live abort procedure.\nimport time\nfmv_time = 0.06\nomv_time = 0.125\nlox_close_lead = 0.1\nlox_close_wait = omv_time + lox_close_lead - fmv_time\nwait_timing = 5  # ms\n\nOBB.close()\nFBB.close()\nOSWV.close()\nFSWV.close()\nOMV.close()\n\nstart_time = time.time()\nwhile time.time() < start_time + lox_close_wait:\n    wait_for(wait_timing*ms)\n\nFMV.close()\nOVNT.open()\nFVNT.open()\nprint("Historical abort excerpt finished")`,
   feedback: `# Idealized pressure feedback demo (not a physical tank model)\nCISO.open()\nwait_until(lambda: CTPT.read() >= 340*psi, 5*s)\nCISO.close()\nCMV.open()\nwait_until(lambda: CTPT.read() <= 250*psi, 5*s)\nCMV.close()\nprint("Pressure-control sequence complete")`,
   import: `press_valve.open()\ntime.sleep(1)\npress_valve.close()`,
   api: `tank_pt.open()\npress_valve.open()\nwait_for(500 * ms)\npress_valve.close()`
@@ -32,27 +31,27 @@ const VESPULA_MAPPING = {
 const ABORT_TWO_MAPPING = {
   valves: ["press_valve", "vent_valve"],
   sensors: [
-    { name: "PT", unit: "psi", interpolation: "linear",
-      samples: [{ at: 0, value: 30 }, { at: 1, value: 40 }, { at: 3, value: 45 }] },
-    { name: "load_cell", unit: "lbf", interpolation: "linear",
-      samples: [{ at: 0, value: 0 }, { at: 1, value: 15 }, { at: 3, value: 50 }] }
+    // Illustrative valve-driven rates; both sensors respond to the press valve opening.
+    { name: "PT", unit: "psi", mode: "valve", initial: 30, valves: ["press_valve"],
+      rates: { "0": 0, "1": 10 }, min: 0, max: 500 },
+    { name: "load_cell", unit: "lbf", mode: "valve", initial: 0, valves: ["press_valve"],
+      rates: { "0": 0, "1": 15 }, min: 0, max: 500 }
   ]
 };
 
-const VESPULA_ABORT_MAPPING = {
-  valves: [
-    { name: "OBB", initial: "OPEN" }, { name: "FBB", initial: "OPEN" },
-    { name: "OSWV", initial: "OPEN" }, { name: "FSWV", initial: "OPEN" },
-    { name: "OMV", initial: "OPEN" }, { name: "FMV", initial: "OPEN" },
-    { name: "OVNT", initial: "CLOSED" }, { name: "FVNT", initial: "CLOSED" }
-  ],
-  sensors: []
+const ABORT_MAPPING = {
+  valves: ["press_valve", "vent_valve"],
+  sensors: [
+    // Valve bits are ordered [press_valve, vent_valve]; illustrative rates in psi/s.
+    { name: "tank_pt", unit: "psi", mode: "valve", initial: 0, valves: ["press_valve", "vent_valve"],
+      rates: { "00": 0, "01": -20, "10": 80, "11": 30 }, min: 0, max: 500 }
+  ]
 };
 
 const EXAMPLE_MAPPINGS = {
   vespula: VESPULA_MAPPING,
-  abort_two: ABORT_TWO_MAPPING,
-  vespula_abort: VESPULA_ABORT_MAPPING
+  abort: ABORT_MAPPING,
+  abort_two: ABORT_TWO_MAPPING
 };
 
 const FEEDBACK_MAPPING = {

@@ -1,6 +1,7 @@
 import { highlightPython } from "./highlight.js";
 import { createEnvironmentEditor, parseEnvironmentFile, serializeEnvironmentFile } from "./environment.js";
 import { createTimelineView } from "./timeline.js";
+import { normalizeSequenceName, sequenceFileName, environmentFileName } from "./filename.js";
 
 const EXAMPLES = {
   vespula: "# tank pre press sequence\nimport time\nprint('Pre Press Sequence has begun')\n\n# define pressure variables\nftpt_target = 416*psi # psia, target fuel tank pressure\notpt_target = 357*psi # psia, target lox tank pressure\nupRan = 2*psi # psi, upper range bound for bang bang algorithm\nlowRan = 3*psi # psi, lower range bound for bang bang algorithm\n\n# time variables\npress_time = 20 # s, sequence duration\nwait_timing = 5 # ms\n\n# confirm switch closed\nFSWV.close()\nOSWV.close()\nwait_for(wait_timing*ms)\n\n# initialize valve state variables\nFBB.close()\nFBBopen = False # hardcoded for consistency\nOBB.close()\nOBBopen = False # hardcoded due to feedback issues on sam-21\n\nstart_time = time.time() # s, current time\n\n# press tanks with bang bang algorithm\nwhile time.time() < start_time + press_time:\n\t# check pressures\n\tcurrFTPT = FTPT.read()\n\tcurrOTPT = OTPT.read()\n\t# bang bang algorithm\n\tif FBBopen and currFTPT > ftpt_target + upRan:\n\t\tFBB.close()\n\t\tFBBopen = False\n\telif (not FBBopen) and currFTPT < ftpt_target - lowRan:\n\t\tFBB.open()\n\t\tFBBopen = True\n\tif OBBopen and currOTPT > otpt_target + upRan:\n\t\tOBB.close()\n\t\tOBBopen = False\n\telif (not OBBopen) and currOTPT < otpt_target - lowRan:\n\t\tOBB.open()\n\t\tOBBopen = True\n\twait_for(wait_timing*ms)\n\nOBB.close()\nFBB.close()\n\nprint('Pre Press Sequence has ended')",
@@ -32,6 +33,19 @@ const FEEDBACK_MAPPING = {
 
 const $ = id => document.getElementById(id);
 const source = $("source");
+const sequenceName = $("sequence-name");
+function setSequenceName(value) {
+  const name = normalizeSequenceName(value);
+  sequenceName.value = name;
+  $("sequence-tab-name").textContent = sequenceFileName(name);
+  localStorage.setItem("yjsp-sequence-name", name);
+  return name;
+}
+sequenceName.addEventListener("change", () => setSequenceName(sequenceName.value));
+sequenceName.addEventListener("keydown", event => {
+  if (event.key === "Enter") { event.preventDefault(); sequenceName.blur(); }
+});
+setSequenceName(localStorage.getItem("yjsp-sequence-name") ?? "sequence");
 const mapping = $("mapping");
 const status = $("engine-status");
 let worker;
@@ -363,7 +377,7 @@ function render(result) {
       row.dataset.eventIndex = index;
       row.dataset.line = event.line || "0";
       if (event.line) {
-        row.title = `View sequence.py:${event.line}`;
+        row.title = `View ${sequenceFileName(sequenceName.value)}:${event.line}`;
         row.onclick = () => jumpToSourceLine(event.line, index);
       } else row.disabled = true;
       const time = document.createElement("span");
@@ -463,6 +477,7 @@ for (const control of [clockSpeed, timeLimit]) {
 }
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
+  setSequenceName(button.dataset.example);
   environment.load(button.dataset.example === "vespula" ? VESPULA_MAPPING :
     button.dataset.example === "feedback" ? FEEDBACK_MAPPING : DEFAULT_MAPPING);
   updateEditor();
@@ -477,9 +492,11 @@ document.querySelectorAll("[data-example]").forEach(button => button.onclick = (
 $("upload").onclick = () => $("file-input").click();
 $("file-input").onchange = async event => {
   const file = event.target.files?.[0];
+  event.target.value = "";
   if (!file) return;
   if (file.size > 200000) { setStatus("File too large (200 KB maximum)", "error"); return; }
   source.value = await file.text();
+  setSequenceName(file.name);
   updateEditor();
   invalidateResults();
 };
@@ -491,9 +508,9 @@ function downloadFile(contents, filename, mimeType) {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-$("download").onclick = () => downloadFile(source.value, "sequence.py", "text/x-python");
+$("download").onclick = () => downloadFile(source.value, sequenceFileName(setSequenceName(sequenceName.value)), "text/x-python");
 $("environment-download").onclick = () => {
-  downloadFile(serializeEnvironmentFile(JSON.parse(mapping.value)), "test-environment.json", "application/json");
+  downloadFile(serializeEnvironmentFile(JSON.parse(mapping.value)), environmentFileName(setSequenceName(sequenceName.value)), "application/json");
   setStatus("Test environment exported as JSON", "success");
 };
 $("environment-upload").onclick = () => $("environment-file-input").click();

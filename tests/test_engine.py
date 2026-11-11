@@ -89,6 +89,39 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["checks"]["runtime"], "pass")
         self.assertEqual([event["line"] for event in result["events"]], [2, 4, 2, 4])
 
+    def test_repeated_valve_commands_do_not_truncate_later_transitions(self):
+        source = ("press_valve.open()\n"
+                  "for _ in range(500):\n"
+                  "    press_valve.open()\n"
+                  "    wait_for(500*ms)\n"
+                  "press_valve.close()")
+        result = self.check(source, True, options={"max_duration": 300})
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertEqual([(event["target"], event["detail"], event["time"])
+                          for event in result["events"]],
+                         [("press_valve", "OPEN", 0), ("press_valve", "CLOSED", 250)])
+        self.assertTrue(any("Collapsed 500 repeated valve commands" in item["message"]
+                            for item in result["diagnostics"]))
+
+    def test_more_than_300_real_transitions_are_preserved(self):
+        source = ("for i in range(350):\n"
+                  "    press_valve.actuate(i % 2 == 0)\n"
+                  "    wait_for(1*ms)")
+        result = self.check(source, True)
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertEqual(len(result["events"]), 350)
+        self.assertAlmostEqual(result["events"][-1]["time"], 0.349)
+        self.assertEqual(result["valves"]["press_valve"], "CLOSED")
+
+    def test_excessive_distinct_events_fail_instead_of_silently_truncating(self):
+        source = ("for i in range(10001):\n"
+                  "    press_valve.actuate(i % 2 == 0)")
+        result = self.check(source, True)
+        self.assertEqual(result["checks"]["runtime"], "fail")
+        self.assertEqual(len(result["events"]), 10000)
+        self.assertTrue(any("More than 10,000 distinct simulation events" in item["message"]
+                            for item in result["diagnostics"]))
+
     def test_sensor_source_lines_and_profiles(self):
         result = self.check("wait_for(1*s)\nx = tank_pt.read()\ny = tank_pt.read()", True)
         self.assertEqual(result["checks"]["runtime"], "pass")

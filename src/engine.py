@@ -231,6 +231,8 @@ class SimulationLimit(Exception):
 
 
 class Simulator:
+    MAX_EVENTS = 10000
+
     def __init__(self, valves, sensors, clock_mode="deterministic", speed=5, max_duration=600):
         self.time = 0.0
         self.clock_mode = clock_mode
@@ -240,6 +242,8 @@ class Simulator:
         self.epoch_start = host_time.time()
         self.wait_errors = []
         self.events = []
+        self.commanded_valves = set()
+        self.repeated_valve_commands = 0
         self.initial_valves = dict(valves)
         self.valves = dict(valves)
         self.sensors = sensors
@@ -269,9 +273,11 @@ class Simulator:
 
     def event(self, kind, target, detail):
         self.sync_clock()
-        if len(self.events) < 300:
-            self.events.append(dict(time=round(self.time, 4), kind=kind,
-                                    target=target, detail=str(detail), line=self.source_line()))
+        if len(self.events) >= self.MAX_EVENTS:
+            raise SimulationLimit(f"More than {self.MAX_EVENTS:,} distinct simulation events; "
+                                  "reduce rapid valve switching to keep the timeline usable")
+        self.events.append(dict(time=round(self.time, 4), kind=kind,
+                                target=target, detail=str(detail), line=self.source_line()))
 
     def _advance_to(self, target):
         if target > self.max_duration:
@@ -412,12 +418,18 @@ class Simulator:
             def actuate(self, opening):
                 sim.sync_clock()
                 state = "OPEN" if opening else "CLOSED"
-                if sim.valves[self.name] != state:
+                changed = sim.valves[self.name] != state
+                if changed:
                     for sensor_name, config in sim.sensors.items():
                         if config.get("mode") == "valve" and self.name in config["valves"]:
                             sim.record_sensor(sensor_name)
                 sim.valves[self.name] = state
-                sim.event("valve", self.name, state)
+                # Reissuing an unchanged state does not add another timeline transition.
+                if changed or self.name not in sim.commanded_valves:
+                    sim.event("valve", self.name, state)
+                else:
+                    sim.repeated_valve_commands += 1
+                sim.commanded_valves.add(self.name)
 
             def open(self):
                 self.actuate(True)
@@ -625,6 +637,10 @@ def run_sequence(source, mapping, execute=False, options=None):
         result["diagnostics"].append(diagnostic("runtime", "error", f"{type(error).__name__}: {error}", line))
     result["stdout"] = output.getvalue()[:10000]
     result["diagnostics"].extend(sim.runtime_diagnostics)
+    if sim.repeated_valve_commands:
+        result["diagnostics"].append(diagnostic("runtime", "warning",
+            f"Collapsed {sim.repeated_valve_commands:,} repeated valve commands that did not change state; "
+            "all state transitions remain in the timeline"))
     result["events"] = sim.events
     result["virtual_time"] = round(sim.time, 4)
     result["timing"] = sim.timing_summary()

@@ -65,6 +65,7 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
 
     const valvePlot = page.locator(".timeline-interactive").first();
     const sensorPlot = page.locator(".timeline-interactive").last();
+    await valvePlot.scrollIntoViewIfNeeded();
     const valveBounds = await valvePlot.boundingBox();
     const hoverAt = (bounds, fraction) => ({
       x: bounds.x + bounds.width * (150 + 819 * fraction) / 1000,
@@ -74,18 +75,20 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     await page.waitForFunction(() => document.querySelector(".timeline-table thead")?.textContent?.includes("LIVE"));
     let text = await page.locator(".timeline-table").textContent();
     assert.match(text, /LIVE · 270s/);
-    assert.match(text, /CFILL\s+OPEN/);
+    const cfillStates = page.locator(".timeline-table tbody tr").filter({ has: page.locator("th", { hasText: "CFILL" }) }).locator("td");
+    assert.equal(await cfillStates.last().textContent(), "OPEN");
 
     const late = hoverAt(valveBounds, 0.9);
     await page.mouse.click(late.x, late.y);
     assert.match(await page.locator(".timeline-count").textContent(), /1\/4 pinned/);
+    await sensorPlot.scrollIntoViewIfNeeded();
     const sensorBounds = await sensorPlot.boundingBox();
     const early = hoverAt(sensorBounds, 0.15);
     await page.mouse.move(early.x, early.y);
     text = await page.locator(".timeline-table").textContent();
     assert.match(text, /C1 · 270s/);
     assert.match(text, /LIVE · 45s/);
-    assert.match(text, /CFILL\s+OPEN\s+CLOSED/);
+    assert.deepEqual(await cfillStates.allTextContents(), ["OPEN", "CLOSED"]);
     assert.equal(pageErrors.length, 0, `Browser exceptions: ${pageErrors.join("; ")}`);
 
     // The public Luna binding accepts booleans, not truthy string substitutes.

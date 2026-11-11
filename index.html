@@ -25,7 +25,7 @@
       <div class="workspace">
         <section class="editor-panel" aria-label="Sequence and test environment editors">
           <div class="panel-header">
-            <div class="editor-tabs" role="tablist" aria-label="Editor tabs"><button id="sequence-tab" class="editor-tab active" role="tab" aria-controls="sequence-pane" aria-selected="true" type="button"><span class="tab-dot"></span>sequence.py</button><button id="environment-tab" class="editor-tab" role="tab" aria-controls="environment-pane" aria-selected="false" type="button">Test Environment</button></div>
+            <div class="editor-tabs" role="tablist" aria-label="Editor tabs"><button id="sequence-tab" class="editor-tab active" role="tab" aria-controls="sequence-pane" aria-selected="true" type="button"><span class="tab-dot"></span><span id="sequence-tab-name">sequence.py</span></button><button id="environment-tab" class="editor-tab" role="tab" aria-controls="environment-pane" aria-selected="false" type="button">Test Environment</button></div>
             <div class="header-actions">
               <button id="split-toggle" class="split-button" aria-pressed="false" type="button">▥ Split view</button>
               <div id="source-actions" class="source-actions"><button id="upload" class="link-button" type="button">Open .py</button><button id="download" class="link-button" type="button">Download .py ↓</button></div>
@@ -49,7 +49,7 @@
               <input id="mapping" type="hidden" />
             </div>
           </div>
-          <div class="editor-footer"><span id="editor-info">0 lines</span><span id="environment-info" hidden>Test Environment</span><span>⌘ / Ctrl + Enter</span></div>
+          <div class="editor-footer"><span id="editor-info">0 lines</span><span id="environment-info" hidden>Test Environment</span><label class="sequence-name-label">Test name <input id="sequence-name" type="text" maxlength="80" spellcheck="false" aria-label="Sequence test name" placeholder="sequence" /><span>.py</span></label><span>⌘ / Ctrl + Enter</span></div>
           <div class="actions">
             <button id="validate" class="button secondary" type="button">Validate code</button>
             <button id="simulate" class="button primary" type="button"><span>▶</span> Run simulation</button>

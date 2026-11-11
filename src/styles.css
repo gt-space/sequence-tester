@@ -69,6 +69,7 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .editor-tab { display: flex; align-items: center; gap: 10px; align-self: stretch; padding: 0 18px; border: 0; border-right: 1px solid #33413d; border-bottom: 2px solid transparent; background: transparent; color: #a6b9ae; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .editor-tab:hover { color: var(--gold); }
 .editor-tab.active { color: #f0f5f0; background: #0e1717; border-bottom-color: var(--gold); }
+#sequence-tab-name { display: block; overflow: hidden; max-width: 210px; text-overflow: ellipsis; }
 .tab-dot { display: inline-block; flex: 0 0 8px; width: 8px; height: 8px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 14px #e0a50055; }
 .header-actions { gap: 18px; flex-wrap: wrap; }
 .source-actions { gap: 17px; }
@@ -184,7 +185,10 @@ h1 { margin: 12px 0 13px; font-size: clamp(42px, 5.5vw, 72px); line-height: 1.02
 .tok-bracket-1 { color: #7bc1ac; }
 .tok-bracket-2 { color: #d8b0de; }
 .tok-bracket-error { color: #fc857b; }
-.editor-footer { display: flex; justify-content: space-between; gap: 12px; padding: 11px 20px; border-top: 1px solid #253530; color: #83958b; font: 10px "SFMono-Regular", Consolas, monospace; }
+.editor-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 11px 20px; border-top: 1px solid #253530; color: #83958b; font: 10px "SFMono-Regular", Consolas, monospace; }
+.sequence-name-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; color: #bacac0; }
+.sequence-name-label input { width: 145px; max-width: 38vw; padding: 6px 8px; border: 1px solid #46564d; border-radius: 5px; background: #1b2925; color: #e1eae4; font: inherit; }
+.sequence-name-label input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 17px 20px; border-top: 1px solid #33413d; background: #192523; }
 .button { padding: 13px 18px; border-radius: 6px; font-size: 12px; font-weight: 760; border: 1px solid transparent; transition: transform .12s, background .12s; }
 .button:hover { transform: translateY(-1px); }

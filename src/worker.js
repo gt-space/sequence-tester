@@ -8,9 +8,12 @@ async function initialize() {
   self.postMessage({ type: "progress", message: "Initializing Python runtime…" });
   const pyodide = await loadPyodide({ indexURL: PYODIDE_BASE });
   self.postMessage({ type: "progress", message: "Loading Luna validation engine…" });
-  const response = await fetch(new URL("./engine.py", self.location.href));
-  if (!response.ok) throw new Error("Could not load the validation engine");
-  pyodide.runPython(await response.text());
+  for (const filename of ["luna_contract.py", "luna_validation.py", "engine.py"]) {
+    const response = await fetch(new URL(`./${filename}`, self.location.href));
+    if (!response.ok) throw new Error(`Could not load ${filename}`);
+    pyodide.FS.writeFile(`/home/pyodide/${filename}`, await response.text());
+  }
+  pyodide.runPython("import sys; sys.path.insert(0, '/home/pyodide'); from engine import *");
   self.postMessage({ type: "ready" });
   return pyodide;
 }

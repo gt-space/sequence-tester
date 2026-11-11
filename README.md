@@ -11,6 +11,9 @@ A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna)
 5. Valve-driven sensors with complete valve-state truth tables, linear rates, and optional bounds for feedback control loops.
 6. Synchronized valve-state and sensor plots, with up to four pinned time cursors and per-trace readouts.
 7. Click a valve transition, a sensor source-link, or a trace event to highlight the originating Python line.
+8. Name a sequence test using the **Test name** field. Downloads use `<test-name>.py`, and environment exports use `<test-name>-environment.json`. Opening a `.py` file restores its base name; the current name is remembered in this browser.
+
+The timeline records the first valve command and every actual OPEN/CLOSED transition, while collapsing redundant commands that repeat an unchanged state. The diagnostics show how many redundant commands were collapsed. Simulations with more than 10,000 distinct events fail explicitly rather than silently truncating the valve history; a successful run always has a complete valve-state timeline.
 
 **Not implemented:** behavioral assertions (layer 5), fault injection (layer 6), accurate hardware behavior, hardware-confirmed abort stages, or physical SAM testing. Passing these checks does not demonstrate that a sequence is safe to run on hardware.
 
@@ -28,9 +31,10 @@ Open `http://localhost:8000`. The deployed site serves [Pyodide](https://pyodide
 python3 -m unittest discover -s tests -v
 node --check src/app.js
 node --check src/environment.js
+node --check src/filename.js
 node --check src/timeline.js
 node --check src/worker.js
-node --test tests/test_environment.mjs tests/test_timeline.mjs
+node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_timeline.mjs
 ```
 
 GitHub Actions runs these checks on every push and PR. A push to `main` deploys the static site through GitHub Pages once Pages is enabled for the repository.

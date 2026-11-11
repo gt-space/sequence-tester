@@ -10,21 +10,10 @@ import time as host_time
 import traceback
 import types
 
+from luna_contract import API
+from luna_validation import analyze_luna_api
 
-API = {
-    "Current", "Duration", "ElectricPotential", "Force", "Pressure", "Temperature",
-    "A", "mA", "s", "ms", "us", "V", "mV", "lbf", "psi", "K",
-    "Sensor", "Valve", "ValveState", "ValveSafeState", "IntervalIterator",
-    "wait_for", "wait_until", "abort", "clear_abort_status", "interval",
-    "create_abort_stage", "set_abort_stage", "curr_abort_stage",
-    "curr_abort_condition", "aborted_in_this_stage", "send_reco_launch",
-    "reco_init_ekf", "read_umbilical_voltage", "reco_recvd_launch",
-    "launch_lug_arm", "launch_lug_detonate", "set_servo_disconnect_abort",
-    "sam_camera_toggle", "OPEN", "CLOSED",
-}
 IMPORTS = {"common", "time", "math"}
-VALVE_METHODS = {"open", "close", "actuate", "is_open", "is_closed", "get_name"}
-SENSOR_METHODS = {"read"}
 UNITS = {"unknown", "psi", "V", "A", "lbf", "K"}
 
 
@@ -152,34 +141,14 @@ def check_source(source, valves, sensors):
                 errors.append(diagnostic("names", "error", f"Undefined name '{node.id}'", node.lineno, node.col_offset + 1))
                 seen.add(node.id)
 
-    kinds = {name: "valve" for name in valves}
-    kinds.update({name: "sensor" for name in sensors})
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            value = node.value
-            if isinstance(value, ast.Call) and isinstance(value.func, ast.Name) and value.func.id in {"Valve", "Sensor"}:
-                kind = value.func.id.lower()
-                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                for target in targets:
-                    if isinstance(target, ast.Name):
-                        kinds[target.id] = kind
         if isinstance(node, ast.Import):
             for item in node.names:
                 if item.name.split(".")[0] not in IMPORTS:
                     errors.append(diagnostic("runtime", "warning", f"Import '{item.name}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
         if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] not in IMPORTS:
             errors.append(diagnostic("runtime", "warning", f"Import '{node.module}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
-            name, method = node.func.value.id, node.func.attr
-            kind = kinds.get(name)
-            if kind and method not in (VALVE_METHODS if kind == "valve" else SENSOR_METHODS):
-                errors.append(diagnostic("api", "error", f"{kind.title()} '{name}' does not support .{method}()", node.lineno, node.col_offset + 1))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"Valve", "Sensor"}:
-            if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
-                name = node.args[0].value
-                pool = valves if node.func.id == "Valve" else sensors
-                if name not in pool:
-                    errors.append(diagnostic("api", "error", f"{node.func.id} '{name}' is not in the selected mapping", node.lineno, node.col_offset + 1))
+    errors.extend(analyze_luna_api(tree, valves, sensors))
     return tree, errors
 
 
@@ -243,6 +212,7 @@ class Simulator:
         self.wait_errors = []
         self.events = []
         self.commanded_valves = set()
+        self.total_valve_commands = 0
         self.repeated_valve_commands = 0
         self.initial_valves = dict(valves)
         self.valves = dict(valves)
@@ -403,8 +373,11 @@ class Simulator:
         module = types.ModuleType("common")
 
         class ValveState:
+            Undetermined = "UNDETERMINED"
+            Disconnected = "DISCONNECTED"
             Open = "OPEN"
             Closed = "CLOSED"
+            Fault = "FAULT"
 
         class Valve:
             def __init__(self, name):
@@ -412,11 +385,11 @@ class Simulator:
                     raise KeyError(f"Unknown valve '{name}'")
                 self.name = name
 
-            def get_name(self):
-                return self.name
-
             def actuate(self, opening):
+                if type(opening) is not bool:
+                    raise TypeError("Valve.actuate(open) expects a bool (True or False)")
                 sim.sync_clock()
+                sim.total_valve_commands += 1
                 state = "OPEN" if opening else "CLOSED"
                 changed = sim.valves[self.name] != state
                 if changed:
@@ -499,6 +472,8 @@ class Simulator:
                 calls += 1
 
         def interval(count, period):
+            if type(count) is not int:
+                raise TypeError("interval(count, period) expects an integer count")
             if not isinstance(period, Quantity) or period.kind != "s":
                 raise TypeError("interval expects a Duration")
             sim.sync_clock()
@@ -510,6 +485,18 @@ class Simulator:
 
         def send(name, *args):
             sim.event("command", name, ", ".join(map(str, args)))
+
+        def boolean_command(name, enabled):
+            if type(enabled) is not bool:
+                raise TypeError(f"{name} expects a bool")
+            send(name, enabled)
+
+        def hostname_command(name, host, enabled):
+            if not isinstance(host, str):
+                raise TypeError(f"{name} expects a string SAM hostname")
+            if type(enabled) is not bool:
+                raise TypeError(f"{name} expects a bool should_enable")
+            send(name, host, enabled)
 
         def create_abort_stage(name, condition, safe_states):
             if not isinstance(safe_states, dict):
@@ -547,10 +534,11 @@ class Simulator:
             "reco_init_ekf": lambda: send("reco_init_ekf"),
             "read_umbilical_voltage": lambda: Quantity(0, "V"),
             "reco_recvd_launch": lambda: False,
-            "launch_lug_arm": lambda host, enabled: send("launch_lug_arm", host, enabled),
-            "launch_lug_detonate": lambda host, enabled: send("launch_lug_detonate", host, enabled),
-            "set_servo_disconnect_abort": lambda enabled: send("set_servo_disconnect_abort", enabled),
-            "sam_camera_toggle": lambda enabled: send("sam_camera_toggle", enabled),
+            "launch_lug_arm": lambda host, enabled: hostname_command("launch_lug_arm", host, enabled),
+            "launch_lug_detonate": lambda host, enabled: hostname_command("launch_lug_detonate", host, enabled),
+            "set_servo_disconnect_abort": lambda enabled: boolean_command("set_servo_disconnect_abort", enabled),
+            "sam_camera_toggle": lambda enabled: boolean_command("sam_camera_toggle", enabled),
+            "__layout_fingerprint__": "simulation-only-placeholder",
         }
         for name, kind in (("Current", "A"), ("Duration", "s"), ("ElectricPotential", "V"),
                            ("Force", "lbf"), ("Pressure", "psi"), ("Temperature", "K")):
@@ -564,6 +552,51 @@ class Simulator:
             setattr(module, key, value)
         module.__all__ = list(names)
         return module
+
+
+def simulation_integrity_errors(sim, result):
+    """Detect internal inconsistencies before displaying a 'passed' simulation."""
+    errors = []
+    events = result["events"]
+    valve_events = [event for event in events if event["kind"] == "valve"]
+    if len(valve_events) + sim.repeated_valve_commands != sim.total_valve_commands:
+        errors.append("Valve command accounting does not match the recorded timeline")
+
+    states = dict(sim.initial_valves)
+    previous_time = -1.0
+    for event in events:
+        at = event.get("time")
+        if (isinstance(at, bool) or not isinstance(at, (int, float)) or not math.isfinite(at)
+                or at < previous_time or at < 0 or at > sim.time + 0.0001):
+            errors.append("Event timestamps are invalid or out of order")
+            break
+        previous_time = at
+        if event["kind"] == "valve":
+            if event["target"] not in states or event["detail"] not in {"OPEN", "CLOSED"}:
+                errors.append("Timeline contains an unknown valve or state")
+                break
+            states[event["target"]] = event["detail"]
+    if states != result["valves"]:
+        errors.append("Final valve states differ from the replayed timeline")
+
+    for name, sensor in result["simulation"]["sensors"].items():
+        samples = sensor["samples"]
+        if not samples:
+            errors.append(f"Sensor '{name}' has no recorded samples")
+            continue
+        if sensor.get("mode") == "valve":
+            previous = -1.0
+            for sample in samples:
+                at, value = sample["at"], sample["value"]
+                if (not isinstance(at, (int, float)) or not math.isfinite(at)
+                        or at < previous or at < 0 or at > sim.time + 0.000001
+                        or not isinstance(value, (int, float)) or not math.isfinite(value)):
+                    errors.append(f"Sensor '{name}' has invalid or unordered trace samples")
+                    break
+                previous = at
+            if not math.isclose(samples[-1]["value"], sim.dynamic_values[name], rel_tol=1e-9, abs_tol=1e-8):
+                errors.append(f"Sensor '{name}' trace does not match the final simulated value")
+    return errors
 
 
 def run_sequence(source, mapping, execute=False, options=None):
@@ -650,4 +683,8 @@ def run_sequence(source, mapping, execute=False, options=None):
         "sensors": sim.sensor_traces(),
         "sensor_read_lines": {name: sorted(lines) for name, lines in sim.sensor_read_lines.items()},
     }
+    if result["checks"]["runtime"] == "pass":
+        for problem in simulation_integrity_errors(sim, result):
+            result["diagnostics"].append(diagnostic("runtime", "error", f"Simulation integrity check failed: {problem}"))
+            result["checks"]["runtime"] = "fail"
     return result

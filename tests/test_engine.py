@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from engine import run_sequence
+from engine import Simulator, run_sequence, simulation_integrity_errors
 
 
 MAPPING = {
@@ -149,7 +149,7 @@ class EngineTests(unittest.TestCase):
 
     def test_wait_until_rejects_invalid_timeout(self):
         result = self.check("wait_until(lambda: False, 1)", True)
-        self.assertEqual(result["checks"]["runtime"], "fail")
+        self.assertEqual(result["checks"]["api"], "fail")
 
     def test_abort_stage_configuration(self):
         result = self.check("create_abort_stage('safe', 'manual', {press_valve: (CLOSED, 5)})", True)
@@ -163,7 +163,62 @@ class EngineTests(unittest.TestCase):
 
     def test_unit_type_error(self):
         result = self.check("wait_for(4)", True)
+        self.assertEqual(result["checks"]["api"], "fail")
+
+    def test_static_luna_signature_validation(self):
+        cases = [
+            ("press_valve.actuate('CLOSED')", "expects bool"),
+            ("press_valve.get_name()", "does not expose"),
+            ("tank_pt.read(1)", "at most 0"),
+            ("press_valve.open(True)", "at most 0"),
+            ("wait_for()", "missing required"),
+            ("interval(2.5, 10 * ms)", "expects i64"),
+            ("launch_lug_arm('sam-21', 'True')", "expects bool"),
+            ("sam_camera_toggle(1)", "expects bool"),
+            ("wait_until(True, timeout=5*s)", "expects &PyAny"),
+            ("press_valve.actuate(enabled=1)", "no parameter 'enabled'"),
+            ("print(1*psi + 2*V)", "cannot combine"),
+            ("import common\ncommon.missing_command()", "does not export"),
+        ]
+        for source, message in cases:
+            with self.subTest(source=source):
+                result = self.check(source, True)
+                self.assertEqual(result["checks"]["api"], "fail", result["diagnostics"])
+                self.assertTrue(any(message.lower() in item["message"].lower() for item in result["diagnostics"]),
+                                result["diagnostics"])
+
+    def test_valid_luna_api_calls_and_runtime_bool_guard(self):
+        source = ("from common import Valve as ValveAlias\n"
+                  "v = ValveAlias('press_valve')\n"
+                  "v.actuate(True)\n"
+                  "launch_lug_arm('sam-21', False)\n"
+                  "wait_until(lambda: v.is_open(), timeout=5*s)\n"
+                  "sam_camera_toggle(True)")
+        result = self.check(source, True)
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        result = self.check("opening = 'CLOSED'\npress_valve.actuate(opening)", True)
+        # Static inference catches simple aliasing; opaque dynamic values are rejected at runtime.
+        self.assertEqual(result["checks"]["api"], "fail")
+        result = self.check("def opening(): return 'CLOSED'\npress_valve.actuate(opening())", True)
         self.assertEqual(result["checks"]["runtime"], "fail")
+
+    def test_integrity_checks_valve_event_accounting(self):
+        sim = Simulator({"press_valve": "CLOSED"}, {})
+        sim.total_valve_commands = 2
+        sim.repeated_valve_commands = 1
+        result = {"events": [], "valves": {"press_valve": "CLOSED"},
+                  "simulation": {"sensors": {}}}
+        self.assertTrue(any("accounting" in problem for problem in simulation_integrity_errors(sim, result)))
+
+    def test_integrity_checks_final_state_and_event_order(self):
+        sim = Simulator({"press_valve": "CLOSED"}, {})
+        sim.total_valve_commands = 1
+        result = {"events": [{"kind": "valve", "target": "press_valve", "detail": "OPEN", "time": 0}],
+                  "valves": {"press_valve": "CLOSED"}, "simulation": {"sensors": {}}}
+        self.assertTrue(any("Final valve states" in problem for problem in simulation_integrity_errors(sim, result)))
+        result["valves"]["press_valve"] = "OPEN"
+        result["events"].append({"kind": "command", "target": "x", "detail": "", "time": -1})
+        self.assertTrue(any("timestamps" in problem for problem in simulation_integrity_errors(sim, result)))
 
     def test_interval(self):
         result = self.check("for i in interval(3, 2*s):\n    print(i)", True)

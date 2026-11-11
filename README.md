@@ -42,7 +42,7 @@ node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_saved_
 python3 scripts/check_luna_contract.py /path/to/luna-main
 ```
 
-GitHub Actions runs these checks on every push and PR, and daily. CI checks out **Luna's current `main`** and fails if the Rust/PyO3 exports, public function/method signatures, quantity definitions, valve-state enum, or FC Python prelude diverge from `src/luna_contract.py`. This intentionally blocks an unnoticed API change; semantic changes may still require manual review and simulator updates. A push to `main` deploys the static site through GitHub Pages once Pages is enabled for the repository.
+GitHub Actions runs these checks on **every branch push and PR**, and daily. CI checks out **Luna's current `main`** and fails if the Rust/PyO3 exports, public function/method signatures, quantity definitions, valve-state enum, or FC Python prelude diverge from `src/luna_contract.py`. This intentionally blocks an unnoticed API change; semantic changes may still require manual review and simulator updates. The real-browser regression exercises late valve events, synchronized cursors, saved test restoration, strict API diagnostics, and abort-stage/safing displays. When it fails, CI uploads browser state and a screenshot as `browser-regression-failure` for diagnosis. Only a push to `main` deploys the static site through GitHub Pages.
 
 ## Test Environment
 

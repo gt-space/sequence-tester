@@ -1,8 +1,7 @@
 name: Test and deploy
 
 on:
-  push:
-    branches: [main]
+  push: # Test every branch; deploy only main.
   pull_request:
   workflow_dispatch:
   schedule:
@@ -45,9 +44,17 @@ jobs:
           ln -s /tmp/sequence-browser/node_modules/pyodide src/pyodide
       - name: End-to-end Pyodide and plot cursor regression
         run: NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_browser.cjs
+      - name: Upload browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-regression-failure
+          path: browser-test-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
 
   deploy:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
     permissions:

@@ -38,10 +38,10 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
       "CMV.open()",
       "for _ in range(500):",
       "    CMV.open()",
-      "    wait_for(500*ms)",
+      "    wait_for(20*ms)",
       "CMV.close()",
       "CFILL.open()",
-      "wait_for(50*s)",
+      "wait_for(2*s)",
       "CFILL.close()",
     ].join("\n");
     const environment = {
@@ -60,7 +60,7 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     await page.waitForFunction(() => document.querySelector("#validation-state")?.textContent === "CHECKED" &&
       document.querySelector('[data-check="runtime"]')?.dataset.state === "pass", null, { timeout: 30000 });
     assert.equal(await page.locator("#event-count").textContent(), "4");
-    assert.match(await page.locator("#virtual-time").textContent(), /300\.000/);
+    assert.match(await page.locator("#virtual-time").textContent(), /12\.000/);
     assert.equal(await page.locator(".timeline-interactive").count(), 2);
 
     const valvePlot = page.locator(".timeline-interactive").first();
@@ -74,7 +74,7 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     await page.mouse.move(...Object.values(hoverAt(valveBounds, 0.9)));
     await page.waitForFunction(() => document.querySelector(".timeline-table thead")?.textContent?.includes("LIVE"));
     let text = await page.locator(".timeline-table").textContent();
-    assert.match(text, /LIVE · 270s/);
+    assert.match(text, /LIVE · 10\.8s/);
     const cfillStates = page.locator(".timeline-table tbody tr").filter({ has: page.locator("th", { hasText: "CFILL" }) }).locator("td");
     assert.equal(await cfillStates.last().textContent(), "OPEN");
 
@@ -86,8 +86,8 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     const early = hoverAt(sensorBounds, 0.15);
     await page.mouse.move(early.x, early.y);
     text = await page.locator(".timeline-table").textContent();
-    assert.match(text, /C1 · 270s/);
-    assert.match(text, /LIVE · 45s/);
+    assert.match(text, /C1 · 10\.8s/);
+    assert.match(text, /LIVE · 1\.8s/);
     assert.deepEqual(await cfillStates.allTextContents(), ["OPEN", "CLOSED"]);
     assert.equal(pageErrors.length, 0, `Browser exceptions: ${pageErrors.join("; ")}`);
 

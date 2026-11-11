@@ -4,6 +4,7 @@
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
 const { test } = require("node:test");
+const { mkdirSync, writeFileSync } = require("node:fs");
 const { chromium } = require("playwright");
 
 const HOST = "http://127.0.0.1:8765";
@@ -19,16 +20,17 @@ async function waitForServer() {
   throw new Error("Static server did not become available");
 }
 
-test("Pyodide simulation retains late CFILL events and both plots have live cursors", { timeout: 120000 }, async () => {
+test("Pyodide browser regression: valve history, cursors, saved tests, API, and abort stages", { timeout: 180000 }, async () => {
   const server = spawn("python3", ["-m", "http.server", "8765", "--bind", "127.0.0.1"],
     { stdio: "ignore" });
   let browser;
+  let page;
+  const pageErrors = [];
   try {
     await waitForServer();
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox"],
       ...(process.env.SEQUENCE_BROWSER_BINARY ? { executablePath: process.env.SEQUENCE_BROWSER_BINARY } : {}) });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-    const pageErrors = [];
+    page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     page.on("pageerror", error => pageErrors.push(error.message));
     await page.goto(HOST);
     await page.waitForFunction(() => document.querySelector("#engine-status")?.textContent?.includes("Python runtime ready"),
@@ -123,7 +125,43 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     await page.locator("#validate").click();
     await page.waitForFunction(() => document.querySelector('[data-check="api"]')?.dataset.state === "fail");
     assert.match(await page.locator("#diagnostics").textContent(), /expects bool/);
+
+    // Abort stages must render their trigger and delayed safing as well as the valve timeline.
+    await page.locator('[data-example="abort"]').click();
+    await page.locator("#simulate").click();
+    await page.waitForFunction(() => ["pass", "warning"].includes(document.querySelector("#validation-state")?.dataset.state) &&
+      document.querySelector('[data-check="runtime"]')?.dataset.state === "pass" &&
+      document.querySelector(".abort-stage-card")?.textContent?.includes("TRIGGERED"), null, { timeout: 30000 });
+    assert.equal(await page.locator(".abort-stage-card").count(), 1);
+    assert.ok(await page.locator(".timeline-abort-marker").count() >= 3);
+    const abortPlot = page.locator(".timeline-interactive").first();
+    await abortPlot.scrollIntoViewIfNeeded();
+    const abortBounds = await abortPlot.boundingBox();
+    await page.mouse.move(...Object.values(hoverAt(abortBounds, 1)));
+    await page.waitForFunction(() => document.querySelector(".timeline-table")?.textContent?.includes("ABORTED"));
+    const abortedRows = page.locator(".timeline-table tbody tr");
+    assert.equal(await abortedRows.filter({ has: page.locator("th", { hasText: "press_valve" }) }).locator("td").last().textContent(), "CLOSED");
+    assert.equal(await abortedRows.filter({ has: page.locator("th", { hasText: "vent_valve" }) }).locator("td").last().textContent(), "OPEN");
+    assert.equal(pageErrors.length, 0, `Browser exceptions: ${pageErrors.join("; ")}`);
     await page.close();
+  } catch (error) {
+    // Keep enough evidence in CI to distinguish a simulator failure from an assertion or UI bug.
+    if (page && !page.isClosed()) {
+      const state = await page.evaluate(() => ({
+        engineStatus: document.querySelector("#engine-status")?.textContent,
+        validationState: document.querySelector("#validation-state")?.textContent,
+        checks: [...document.querySelectorAll("[data-check]")].map(el => [el.dataset.check, el.dataset.state]),
+        diagnostics: document.querySelector("#diagnostics")?.textContent,
+        virtualTime: document.querySelector("#virtual-time")?.textContent,
+        eventCount: document.querySelector("#event-count")?.textContent,
+        savedCount: document.querySelector("#saved-count")?.textContent,
+      })).catch(e => ({ captureError: String(e) }));
+      mkdirSync("browser-test-artifacts", { recursive: true });
+      writeFileSync("browser-test-artifacts/state.json", JSON.stringify({ failure: String(error), pageErrors, state }, null, 2));
+      await page.screenshot({ path: "browser-test-artifacts/failure.png", fullPage: true }).catch(() => {});
+      console.error("Browser failure state:", JSON.stringify(state));
+    }
+    throw error;
   } finally {
     if (browser) await browser.close();
     server.kill("SIGTERM");

@@ -117,3 +117,23 @@ test('long timeline keeps live and pinned cursors responsive beyond 400 seconds'
   assert.ok(headers.some(label => label.startsWith('LIVE') && label.includes('120')));
   assert.deepEqual(row('CFILL').children.slice(1).map(node => node.textContent), ['OPEN', 'CLOSED']);
 });
+
+test('rightmost cursor includes an abort safing event at the final timestamp', () => {
+  const container = new MockElement('div');
+  const timeline = createTimelineView({ container, onJumpToSource() {} });
+  timeline.load({
+    virtual_time: 4.13,
+    events: [
+      { time: 0, kind: 'valve', target: 'vent_valve', detail: 'CLOSED' },
+      { time: 4.1304, kind: 'valve', target: 'vent_valve', detail: 'OPEN', origin: 'abort' }
+    ],
+    simulation: {
+      initial_valves: { vent_valve: 'CLOSED' }, sensors: {}, sensor_read_lines: {}, abort_stages: []
+    }
+  });
+  const chart = nodes(container).find(node => matches(node, 'timeline-interactive'));
+  chart.handlers.pointermove({ clientX: 968.75 });
+  const table = nodes(container).find(node => matches(node, 'timeline-table'));
+  const row = nodes(table).find(node => node.tag === 'tr' && node.children[0]?.textContent === 'vent_valve');
+  assert.equal(row.children.at(-1).textContent, 'OPEN');
+});

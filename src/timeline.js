@@ -118,6 +118,7 @@ export function createTimelineView({ container, onJumpToSource }) {
     const timeFromPointer = event => {
       const bounds = chart.getBoundingClientRect();
       const x = (event.clientX - bounds.left) / bounds.width * WIDTH;
+      if (x >= RIGHT - 0.5) return duration;
       return clamp((x - LEFT) / (RIGHT - LEFT) * duration);
     };
     chart.addEventListener("pointermove", event => {
@@ -497,7 +498,8 @@ export function createTimelineView({ container, onJumpToSource }) {
         abort_stages: simulation.abort_stages || [],
         events: [...(result.events || [])].sort((a, b) => a.time - b.time)
       };
-      duration = Math.max(.001, Number(result.virtual_time) || 0);
+      duration = Math.max(.001, Number(result.virtual_time) || 0,
+        ...payload.events.map(event => event.time));
       pins = [];
       hovered = null;
       selectedEvent = -1;

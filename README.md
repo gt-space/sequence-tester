@@ -6,16 +6,19 @@ A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna)
 
 1. Python syntax and indentation checks through Python's parser.
 2. Undefined-name checks, including missing `import time` and typos in script variables.
-3. Luna API and mapping checks for exported names, valve/sensor constructors, and their methods.
-4. Browser-only simulated execution with a **continuous clock (5× default)**, mock sensors, valve commands, exceptions, and an event trace. The deterministic clock remains available internally for automated tests.
-5. Valve-driven sensors with complete valve-state truth tables, linear rates, and optional bounds for feedback control loops.
-6. Synchronized valve-state and sensor plots, with up to four pinned time cursors and per-trace readouts.
-7. Click a valve transition, a sensor source-link, or a trace event to highlight the originating Python line.
-8. Name a sequence test using the **Test name** field. Downloads use `<test-name>.py`, and environment exports use `<test-name>-environment.json`. Opening a `.py` file restores its base name; the current name is remembered in this browser.
+3. Luna API validation for actual exported functions, argument counts/types, keyword arguments, units, mapped device methods, and abort safe-state tuples.
+4. Abort-stage validation and simulated execution: the active condition is evaluated against test sensor profiles on a 10-ms virtual cadence; an abort ends the sequence and schedules configured safe-state commands using their millisecond delays.
+5. Explicit simulation-coverage warnings for abort conditions never triggered and stages never activated.
+6. Browser-only simulated execution with a **continuous clock (5× default)**, mock sensors, valve commands, exceptions, and an event trace. The deterministic clock remains available internally for automated tests.
+7. Valve-driven sensors with complete valve-state truth tables, linear rates, and optional bounds for feedback control loops.
+8. Synchronized valve-state, sensor, and abort-stage plots, with up to four pinned time cursors and per-trace readouts.
+9. Click a valve transition, abort marker, safe-state transition, sensor source-link, or trace event to highlight the originating Python line.
+10. Name a sequence test using the **Test name** field. Downloads use `<test-name>.py`, and environment exports use `<test-name>-environment.json`. Opening a `.py` file restores its base name; the current name is remembered in this browser.
+11. The **Saved sequences** sidebar automatically remembers tests when you run a simulation, storing both the Python source and Test Environment in this browser. **Save current test** also saves without running. Select a saved test to restore both editors, or remove it with ×. Tests are keyed by their name, so running a modified test with the same name updates its saved version. The library holds up to 50 tests without silently evicting older ones. Browser storage is not synced or backed up; export `.py` and environment JSON files to move a test to another device.
 
 The timeline records the first valve command and every actual OPEN/CLOSED transition, while collapsing redundant commands that repeat an unchanged state. The diagnostics show how many redundant commands were collapsed. Simulations with more than 10,000 distinct events fail explicitly rather than silently truncating the valve history; a successful run always has a complete valve-state timeline.
 
-**Not implemented:** behavioral assertions (layer 5), fault injection (layer 6), accurate hardware behavior, hardware-confirmed abort stages, or physical SAM testing. Passing these checks does not demonstrate that a sequence is safe to run on hardware.
+**Not implemented:** valve fault injection, hardware feedback simulation, real asynchronous FC/SAM communication, hardware-confirmed abort stages, or physical SAM testing. Passing these checks does not demonstrate that a sequence is safe to run on hardware.
 
 ## Run locally
 
@@ -32,12 +35,14 @@ python3 -m unittest discover -s tests -v
 node --check src/app.js
 node --check src/environment.js
 node --check src/filename.js
+node --check src/saved-sequences.js
 node --check src/timeline.js
 node --check src/worker.js
-node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_timeline.mjs
+node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_saved_sequences.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
+python3 scripts/check_luna_contract.py /path/to/luna-main
 ```
 
-GitHub Actions runs these checks on every push and PR. A push to `main` deploys the static site through GitHub Pages once Pages is enabled for the repository.
+GitHub Actions runs these checks on every push and PR, and daily. CI checks out **Luna's current `main`** and fails if the Rust/PyO3 exports, public function/method signatures, quantity definitions, valve-state enum, or FC Python prelude diverge from `src/luna_contract.py`. This intentionally blocks an unnoticed API change; semantic changes may still require manual review and simulator updates. A push to `main` deploys the static site through GitHub Pages once Pages is enabled for the repository.
 
 ## Test Environment
 
@@ -74,6 +79,20 @@ The stored configuration has this format (legacy valve-name strings remain suppo
 
 Step profiles hold the most recent sample at or before virtual time `t`; linear profiles interpolate between adjacent samples. No physical tank or valve model is assumed. Supported sensor units: `unknown`, `psi`, `V`, `A`, `lbf`, `K`.
 
+## Example sequences and provenance
+
+- **Two abort stages** adapts the `GROUND` sensor threshold in [Abort Behaviors](https://app.notion.com/p/34327990d78e803d91a1ef9273efd024) and `FILLING` abort-stage configuration in [Abort Stages Usage](https://app.notion.com/p/29827990d78e801e9d40ce4b89f3f6e8). It deliberately changes stage mid-sequence and supplies profiles that trigger the second condition; the thresholds and mappings are **demonstration inputs, not operational limits**.
+- The `create_abort_stage()` examples use integer **milliseconds** for safe-state timers, per Luna's current Rust API. The older [Notion usage guide](https://app.notion.com/p/29827990d78e801e9d40ce4b89f3f6e8) describes those timers in seconds, so its example `5` would mean 5 ms, **not** 5 seconds, in current Luna. The `5000` in the adapted example means 5 seconds.
+- The older [Abort Behaviors](https://app.notion.com/p/34327990d78e803d91a1ef9273efd024) documentation calls `set_servo_disconnect_monitoring(False)`; that function is **not** exported by Luna's current `common` module. The exposed name is `set_servo_disconnect_abort(False)`. Historical scripts must be validated against the current API before use.
+- An ordinary Python script that issues manual valve commands is distinct from a configured abort stage monitored automatically by the FC. The tester models their command traces, but does not prove that either is safe on real hardware.
+
+## Abort-stage simulation
+
+After **Run simulation**, the result contains synchronized valve-command and sensor-profile plots, plus an abort-stage timeline when the script defines stages. Hovering a plot synchronizes the time cursor and shows every mapped trace's value, active abort stage, and abort status. Clicking an empty part of a plot pins a cursor; up to four can be compared side by side and removed individually. Clicking a valve transition, abort marker, stage card, or event-log line link jumps to the source line that issued/defined it. Sensor track links jump to their recorded `.read()` or abort-condition lines; clicking a line in the editor highlights associated events. The detailed event log is collapsible.
+
+Abort stages behave as a **virtualized FC model**, not a hardware-verified safety mechanism. `create_abort_stage(name, condition, {valve: (CLOSED, integer_ms)})` registers a stage. `set_abort_stage(name)` activates the condition; when it becomes true, the simulator records an ABORT event, terminates the operator sequence, and schedules the requested safe-state commands by delay. The evaluator has only the separately injected Luna mapping/API symbols, like the real FC abort subprocess, not the main Python script's local variables. Stages that were active but did not trigger show **ABORT CONDITION NEVER TRIGGERED**, a coverage warning rather than a failure. Stages that were never selected get a different warning.
+
+## Valve-driven sensors
 For example, a pressure sensor affected by `CISO` and `CMV` can use a complete four-row truth table:
 
 ```json
@@ -104,6 +123,8 @@ The Python engine retains a deterministic clock for automated regression tests. 
 
 After **Run simulation**, the result contains two aligned plots: requested valve states and sensor readings (including valve-driven responses). Hovering either plot synchronizes the time cursor and shows every mapped trace's value; valve-driven readouts also show the active truth-table combination and its rate. Clicking an empty part of a plot pins a cursor; up to four can be compared side by side and removed individually. Clicking a valve transition or the event-log line link jumps to the source line that issued it. Sensor track links jump to their recorded `.read()` lines; clicking a line in the editor highlights associated valve transitions on the plot. The detailed event log is collapsible.
 
+When the sequence defines abort stages, a synchronized abort-stage plot also shows activation, triggering, and safing delays. Clicking an abort marker or stage card jumps to the associated source line; abort-condition sensor reads are linked to their definition lines.
+
 Time profiles are **inputs** independent of commands. Valve-driven readings respond to *commanded* valve states using user-entered rates, not a physical fluid model or feedback from real actuators. A graph that looks plausible is not physical verification or validation of control performance. A feedback loop without a readable sensor or time call may still stall until the wall-clock watchdog, even in continuous mode.
 
 ## Compatibility and limitations
@@ -111,10 +132,10 @@ Time profiles are **inputs** independent of commands. Valve-driven readings resp
 The supported sequence API is modeled after `common/src/sequence/{mod,func,device,unit}.rs` and the Python prelude in `flight2/src/sequence.rs` from Luna. All common exports, `OPEN`/`CLOSED`, and mapped names are available without explicit imports.
 
 - `wait_for`, `wait_until`, `interval`, and `time.sleep()` advance time while the continuous clock also progresses between calls. `wait_until()` returns normally on its own timeout, matching Luna, but the tester flags a warning and shows a timeout trace event so the operator sees that the condition never became true. The separate global simulated-time limit is a test error.
-- Actuation and abort functions record *requested commands* only. `set_abort_stage()` does not test real revision/acknowledgment logic.
+- Actuation and abort functions record *requested commands* only. `set_abort_stage()` does not test real revision/acknowledgment logic or physical valve movement. Safe-state actions use the operator's desired OPEN/CLOSED state, without board-level electrical polarity modeling.
 - Modules other than the selected set (`common`, `time`, and `math`) are not supported in simulation, even if valid in Luna. Syntax/name validation can still run on them.
 - No assertion is made about physical response, real sensor reliability, board synchronization, or failure-handling correctness.
 - Browser Python runs in a Web Worker with a time limit and restricted imports. This is intended for a public, credential-free static origin; it is not a general-purpose secure Python sandbox.
 - Source and mapping JSON stay in the visitor's `localStorage` and are not uploaded. Downloaded files are generated locally.
 
-When Luna's binding surface changes, update the simulator and regression tests together. A generated compatibility manifest and runtime contract tests against Luna should be added before relying on this in a formal qualification workflow.
+When Luna's binding surface changes, the daily contract check fails until `src/luna_contract.py`, the validator, simulator, and regression tests have been reviewed and updated together. This is API-surface synchronization, not certification of the flight software's internal semantics.

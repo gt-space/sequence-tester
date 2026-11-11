@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sensorValueAt, valveStateAt, sensorRateAt, sampleScale } from '../src/timeline.js';
+import { sensorValueAt, valveStateAt, sensorRateAt, sampleScale, abortStatusAt } from '../src/timeline.js';
 
 test('step profile holds each reading until the next time point', () => {
   const sensor = { interpolation: 'step', samples: [{at:0,value:100}, {at:2,value:200}] };
@@ -34,6 +34,18 @@ test('constant sensor profiles retain nonzero vertical range', () => {
   const scale = sampleScale({ samples: [{at:0,value:416}] });
   assert.ok(scale.max > scale.min);
   assert.ok(scale.min < 416 && scale.max > 416);
+});
+
+test('abort stage and trigger state follow the same virtual time cursors', () => {
+  const events = [
+    { time: 0, kind: 'abort_config', target: 'press', detail: '' },
+    { time: 2, kind: 'abort_stage', target: 'press', detail: '' },
+    { time: 4, kind: 'abort', target: 'press', detail: 'condition true' },
+    { time: 4.5, kind: 'abort_safe', target: 'FBB', detail: 'CLOSED' }
+  ];
+  assert.deepEqual(abortStatusAt(events, 1), { stage: 'DEFAULT', aborted: false });
+  assert.deepEqual(abortStatusAt(events, 3), { stage: 'press', aborted: false });
+  assert.deepEqual(abortStatusAt(events, 4.1), { stage: 'press', aborted: true });
 });
 
 test('valve-driven cursor readout selects the active truth-table rate', () => {

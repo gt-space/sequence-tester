@@ -57,9 +57,12 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     assert.equal(await page.locator("#sequence-name").inputValue(), "long-cfill-regression");
 
     await page.locator("#simulate").click();
-    await page.waitForFunction(() => document.querySelector("#validation-state")?.textContent === "CHECKED" &&
+    await page.waitForFunction(() => ["pass", "warning"].includes(document.querySelector("#validation-state")?.dataset.state) &&
       document.querySelector('[data-check="runtime"]')?.dataset.state === "pass", null, { timeout: 30000 });
+    assert.match(await page.locator("#diagnostics").textContent(), /Collapsed 500 repeated valve commands/);
     assert.equal(await page.locator("#event-count").textContent(), "4");
+    assert.equal(await page.locator("#saved-count").textContent(), "1");
+    assert.match(await page.locator(".saved-load").first().textContent(), /long-cfill-regression\.py/);
     // The UI runs at 5× real time, so scheduler overshoot can move the end by milliseconds.
     const duration = Number.parseFloat(await page.locator("#virtual-time").textContent());
     assert.ok(duration >= 12 && duration < 13, `Unexpected end time: ${duration}s`);
@@ -97,6 +100,23 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
       `Early live cursor: ${JSON.stringify(times)}`);
     assert.deepEqual(await cfillStates.allTextContents(), ["OPEN", "CLOSED"]);
     assert.equal(pageErrors.length, 0, `Browser exceptions: ${pageErrors.join("; ")}`);
+
+    // A library entry restores both the Python script and its environment.
+    await page.locator("#source").fill("CMV.close()");
+    page.once("dialog", dialog => dialog.accept());
+    await page.locator(".saved-load").first().click();
+    assert.equal(await page.locator("#source").inputValue(), source);
+    assert.deepEqual(JSON.parse(await page.locator("#mapping").inputValue()).valves.map(valve => valve.name), ["CMV", "CFILL"]);
+    await page.locator("#sequence-name").fill("cfill-followup");
+    await page.locator("#save-sequence").click();
+    assert.equal(await page.locator("#saved-count").textContent(), "2");
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector("#saved-count")?.textContent === "2");
+    assert.equal(await page.locator("#saved-count").textContent(), "2");
+    assert.equal(await page.locator("#sequence-name").inputValue(), "cfill-followup");
+    await page.locator(".saved-load").filter({ hasText: "long-cfill-regression" }).click();
+    assert.equal(await page.locator("#sequence-name").inputValue(), "long-cfill-regression");
+    assert.equal(await page.locator("#source").inputValue(), source);
 
     // The public Luna binding accepts booleans, not truthy string substitutes.
     await page.locator("#source").fill("CMV.actuate('CLOSED')");

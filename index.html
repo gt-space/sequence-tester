@@ -74,9 +74,16 @@
         </section>
 
         <aside class="side-panel">
+          <div class="side-section saved-section">
+            <div class="section-heading"><h2>Saved sequences</h2><span id="saved-count" class="counter">0</span></div>
+            <button id="save-sequence" class="save-sequence-button" type="button">+ Save current test</button>
+            <div id="saved-sequences" class="saved-sequences" aria-label="Saved sequence tests"><p class="empty-state">Run a simulation or save a test to add it here.</p></div>
+            <p id="saved-error" class="saved-error" role="alert" hidden></p>
+            <p class="saved-note">Saved with its test environment in this browser only. Reusing a name updates that test.</p>
+          </div>
           <div class="side-section"><div class="section-heading"><h2>Validation</h2><span id="validation-state" class="mini-badge">NOT CHECKED</span></div><div class="check" data-check="syntax"><div><span class="check-icon">—</span><span>Python syntax</span></div><span class="check-status">Not run</span></div><div class="check" data-check="names"><div><span class="check-icon">—</span><span>Names & imports</span></div><span class="check-status">Not run</span></div><div class="check" data-check="api"><div><span class="check-icon">—</span><span>Luna API & mappings</span></div><span class="check-status">Not run</span></div><div class="check" data-check="runtime"><div><span class="check-icon">—</span><span>Simulated runtime</span></div><span class="check-status">Not run</span></div></div>
           <div class="side-section diagnostics"><div class="section-heading"><h2>Diagnostics</h2><span id="issue-count" class="counter">—</span></div><div id="diagnostics" class="empty-state">Not checked</div></div>
-          <div class="side-section"><div class="section-heading"><h2>Examples</h2></div><div class="examples"><button class="example" data-example="vespula" type="button">Vespula prePress <span>↗</span></button><button class="example" data-example="feedback" type="button">Valve-driven CTPT <span>↗</span></button><button class="example" data-example="tank" type="button">Tank press <span>↗</span></button><button class="example" data-example="pulse" type="button">Valve pulse <span>↗</span></button><button class="example" data-example="import" type="button">Missing import <span>↗</span></button><button class="example" data-example="api" type="button">API mistake <span>↗</span></button></div></div>
+          <div class="side-section"><div class="section-heading"><h2>Examples</h2></div><div class="examples"><button class="example" data-example="vespula" type="button">Vespula prePress <span>↗</span></button><button class="example" data-example="feedback" type="button">Valve-driven CTPT <span>↗</span></button><button class="example" data-example="tank" type="button">Tank press <span>↗</span></button><button class="example" data-example="abort" type="button">Abort stage <span>↗</span></button><button class="example" data-example="abort_two" type="button">Two abort stages <span>↗</span></button><button class="example" data-example="pulse" type="button">Valve pulse <span>↗</span></button><button class="example" data-example="import" type="button">Missing import <span>↗</span></button><button class="example" data-example="api" type="button">API mistake <span>↗</span></button></div></div>
         </aside>
       </div>
 

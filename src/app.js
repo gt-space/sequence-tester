@@ -2,11 +2,14 @@ import { highlightPython } from "./highlight.js";
 import { createEnvironmentEditor, parseEnvironmentFile, serializeEnvironmentFile } from "./environment.js";
 import { createTimelineView } from "./timeline.js";
 import { normalizeSequenceName, sequenceFileName, environmentFileName } from "./filename.js";
+import { listSavedSequences, saveSequence, deleteSavedSequence } from "./saved-sequences.js";
 
 const EXAMPLES = {
   vespula: "# tank pre press sequence\nimport time\nprint('Pre Press Sequence has begun')\n\n# define pressure variables\nftpt_target = 416*psi # psia, target fuel tank pressure\notpt_target = 357*psi # psia, target lox tank pressure\nupRan = 2*psi # psi, upper range bound for bang bang algorithm\nlowRan = 3*psi # psi, lower range bound for bang bang algorithm\n\n# time variables\npress_time = 20 # s, sequence duration\nwait_timing = 5 # ms\n\n# confirm switch closed\nFSWV.close()\nOSWV.close()\nwait_for(wait_timing*ms)\n\n# initialize valve state variables\nFBB.close()\nFBBopen = False # hardcoded for consistency\nOBB.close()\nOBBopen = False # hardcoded due to feedback issues on sam-21\n\nstart_time = time.time() # s, current time\n\n# press tanks with bang bang algorithm\nwhile time.time() < start_time + press_time:\n\t# check pressures\n\tcurrFTPT = FTPT.read()\n\tcurrOTPT = OTPT.read()\n\t# bang bang algorithm\n\tif FBBopen and currFTPT > ftpt_target + upRan:\n\t\tFBB.close()\n\t\tFBBopen = False\n\telif (not FBBopen) and currFTPT < ftpt_target - lowRan:\n\t\tFBB.open()\n\t\tFBBopen = True\n\tif OBBopen and currOTPT > otpt_target + upRan:\n\t\tOBB.close()\n\t\tOBBopen = False\n\telif (not OBBopen) and currOTPT < otpt_target - lowRan:\n\t\tOBB.open()\n\t\tOBBopen = True\n\twait_for(wait_timing*ms)\n\nOBB.close()\nFBB.close()\n\nprint('Pre Press Sequence has ended')",
   tank: `press_valve.open()\nwait_until(lambda: tank_pt.read() >= 300 * psi, 5 * s)\npress_valve.close()\nprint("Tank press sequence finished")`,
   pulse: `press_valve.open()\nwait_for(500 * ms)\npress_valve.close()\nwait_for(250 * ms)\nvent_valve.open()\nwait_for(250 * ms)\nvent_valve.close()`,
+  abort: `# Abort triggers when the configured tank pressure exceeds 250 psi\ncreate_abort_stage(\n    "PRESSURIZATION",\n    "tank_pt > 250*psi",\n    {press_valve: (CLOSED, 500), vent_valve: (OPEN, 1000)}\n)\nset_abort_stage("PRESSURIZATION")\npress_valve.open()\nwait_for(5*s)\nprint("Only reached if the abort condition never triggers")`,
+  abort_two: `# Adapted from YJSP Notion's GROUND and FILLING examples.\n# Demonstration thresholds only; not approved operational limits.\n# Safing timers are integer MILLISECONDS in current Luna.\ncreate_abort_stage(\n    "GROUND",\n    "PT.read() > 50*psi",\n    {press_valve: (CLOSED, 0), vent_valve: (OPEN, 0)}\n)\ncreate_abort_stage(\n    "FILLING",\n    "load_cell.read() > 40*lbf",\n    {press_valve: (CLOSED, 5000), vent_valve: (OPEN, 0)}\n)\nset_abort_stage("GROUND")\nwait_for(1*s)\nset_abort_stage("FILLING")\npress_valve.open()\nwait_for(5*s)\nprint("No abort triggered")`,
   feedback: `# Idealized pressure feedback demo (not a physical tank model)\nCISO.open()\nwait_until(lambda: CTPT.read() >= 340*psi, 5*s)\nCISO.close()\nCMV.open()\nwait_until(lambda: CTPT.read() <= 250*psi, 5*s)\nCMV.close()\nprint("Pressure-control sequence complete")`,
   import: `press_valve.open()\ntime.sleep(1)\npress_valve.close()`,
   api: `tank_pt.open()\npress_valve.open()\nwait_for(500 * ms)\npress_valve.close()`
@@ -25,11 +28,39 @@ const VESPULA_MAPPING = {
   ]
 };
 
+const ABORT_TWO_MAPPING = {
+  valves: ["press_valve", "vent_valve"],
+  sensors: [
+    // Illustrative valve-driven rates; both sensors respond to the press valve opening.
+    { name: "PT", unit: "psi", mode: "valve", initial: 30, valves: ["press_valve"],
+      rates: { "0": 0, "1": 10 }, min: 0, max: 500 },
+    { name: "load_cell", unit: "lbf", mode: "valve", initial: 0, valves: ["press_valve"],
+      rates: { "0": 0, "1": 15 }, min: 0, max: 500 }
+  ]
+};
+
+const ABORT_MAPPING = {
+  valves: ["press_valve", "vent_valve"],
+  sensors: [
+    // Valve bits are ordered [press_valve, vent_valve]; illustrative rates in psi/s.
+    { name: "tank_pt", unit: "psi", mode: "valve", initial: 0, valves: ["press_valve", "vent_valve"],
+      rates: { "00": 0, "01": -20, "10": 80, "11": 30 }, min: 0, max: 500 }
+  ]
+};
+
+const EXAMPLE_MAPPINGS = {
+  vespula: VESPULA_MAPPING,
+  abort: ABORT_MAPPING,
+  abort_two: ABORT_TWO_MAPPING
+};
+
 const FEEDBACK_MAPPING = {
   valves: ["CISO", "CMV"],
   sensors: [{ name: "CTPT", unit: "psi", mode: "valve", initial: 200,
     valves: ["CISO", "CMV"], rates: { "00": 0, "01": -25, "10": 40, "11": 0 }, min: 0, max: 500 }]
 };
+
+EXAMPLE_MAPPINGS.feedback = FEEDBACK_MAPPING;
 
 const $ = id => document.getElementById(id);
 const source = $("source");
@@ -187,8 +218,12 @@ function makeWorker() {
       pending = null;
       finishFlight(data.result);
       render(data.result);
-      setStatus(data.result.checks?.runtime === "fail" ? "Simulation stopped · inspect diagnostics" : "Check complete",
-        data.result.checks?.runtime === "fail" ? "error" : "success");
+      const issues = data.result.diagnostics || [];
+      const errors = issues.filter(item => item.severity === "error").length;
+      const warnings = issues.filter(item => item.severity === "warning").length;
+      setStatus(errors ? `${errors} error(s) · ${warnings} warning(s)` :
+        warnings ? `Check complete · ${warnings} warning(s)` : "Check complete",
+      errors ? "error" : warnings ? "warning" : "success");
     } else if (data.type === "failure") {
       if (data.id !== currentId) return;
       clearExecutionTimers();
@@ -262,6 +297,7 @@ function run(mode) {
   const request = { id: ++currentId, mode, source: source.value, mapping: mapping.value, options };
   localStorage.setItem("yjsp-sequence-source", source.value);
   localStorage.setItem("yjsp-sequence-mapping", mapping.value);
+  if (mode === "simulate") saveCurrentSequence(true);
   if (!worker) makeWorker();
   if (running) {
     makeWorker();
@@ -310,8 +346,9 @@ function invalidateResults() {
 function render(result) {
   const stages = result.checks || {};
   const failed = Object.values(stages).includes("fail");
-  $("validation-state").textContent = failed ? "ISSUES FOUND" : "CHECKED";
-  $("validation-state").dataset.state = failed ? "fail" : "pass";
+  const hasWarnings = (result.diagnostics || []).some(item => item.severity === "warning");
+  $("validation-state").textContent = failed ? "ISSUES FOUND" : hasWarnings ? "WARNINGS" : "CHECKED";
+  $("validation-state").dataset.state = failed ? "fail" : hasWarnings ? "warning" : "pass";
   for (const [name, state] of Object.entries(stages)) {
     const el = document.querySelector(`[data-check="${name}"]`);
     if (!el) continue;
@@ -420,6 +457,105 @@ const environment = createEnvironmentEditor({
     invalidateResults();
   }
 });
+
+let activeSavedSnapshot = null;
+function currentMatches(entry) {
+  return entry.name === normalizeSequenceName(sequenceName.value) &&
+    entry.source === source.value && entry.mapping === mapping.value;
+}
+
+function renderSavedSequences() {
+  const container = $("saved-sequences");
+  container.replaceChildren();
+  let entries;
+  try {
+    entries = listSavedSequences(localStorage);
+    $("saved-error").hidden = true;
+  } catch (error) {
+    $("saved-error").textContent = error.message;
+    $("saved-error").hidden = false;
+    $("saved-count").textContent = "!";
+    return;
+  }
+  $("saved-count").textContent = String(entries.length);
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Run a simulation or save a test to add it here.";
+    container.append(empty);
+    return;
+  }
+  for (const entry of entries) {
+    const row = document.createElement("div");
+    row.className = "saved-entry";
+    const load = document.createElement("button");
+    load.type = "button";
+    load.className = "saved-load";
+    load.title = `Load ${entry.name}.py and its environment`;
+    const title = document.createElement("strong");
+    title.textContent = `${entry.name}.py`;
+    const date = document.createElement("small");
+    date.textContent = `Saved ${new Date(entry.updatedAt).toLocaleString()}`;
+    load.append(title, date);
+    load.onclick = () => {
+      if (!currentMatches(entry) && (!activeSavedSnapshot || !currentMatches(activeSavedSnapshot)) &&
+          !window.confirm("Replace the current unsaved edits with this saved test?")) return;
+      source.value = entry.source;
+      setSequenceName(entry.name);
+      environment.load(entry.mapping);
+      updateEditor();
+      invalidateResults();
+      activeSavedSnapshot = entry;
+      source.focus();
+      source.setSelectionRange(0, 0);
+      source.scrollTop = 0;
+      source.scrollLeft = 0;
+      setStatus(`Loaded ${entry.name}.py and its test environment`, "success");
+    };
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "saved-remove";
+    remove.textContent = "×";
+    remove.title = `Delete ${entry.name} from this browser`;
+    remove.setAttribute("aria-label", remove.title);
+    remove.onclick = () => {
+      if (!window.confirm(`Delete saved test ${entry.name}.py from this browser?`)) return;
+      try {
+        deleteSavedSequence(localStorage, entry.name);
+        if (activeSavedSnapshot?.name === entry.name) activeSavedSnapshot = null;
+        renderSavedSequences();
+        setStatus(`Deleted saved test ${entry.name}.py`, "success");
+      } catch (error) {
+        $("saved-error").textContent = `Could not delete: ${error.message}`;
+        $("saved-error").hidden = false;
+      }
+    };
+    row.append(load, remove);
+    container.append(row);
+  }
+}
+
+function saveCurrentSequence(silent = false) {
+  try {
+    const entry = saveSequence(localStorage, {
+      name: setSequenceName(sequenceName.value), source: source.value, mapping: mapping.value
+    });
+    activeSavedSnapshot = entry;
+    renderSavedSequences();
+    if (!silent) setStatus(`Saved ${entry.name}.py with its test environment in this browser`, "success");
+    return true;
+  } catch (error) {
+    $("saved-error").textContent = `Could not save test: ${error.message}`;
+    $("saved-error").hidden = false;
+    if (!silent) setStatus(`Could not save test: ${error.message}`, "error");
+    return false;
+  }
+}
+$("save-sequence").onclick = () => saveCurrentSequence();
+renderSavedSequences();
+try {
+  activeSavedSnapshot = listSavedSequences(localStorage).find(currentMatches) ?? null;
+} catch { /* The visible error is provided by renderSavedSequences(). */ }
 $("add-valve").onclick = environment.addValve;
 $("add-sensor").onclick = environment.addSensor;
 let currentTab = "sequence";
@@ -478,8 +614,7 @@ for (const control of [clockSpeed, timeLimit]) {
 document.querySelectorAll("[data-example]").forEach(button => button.onclick = () => {
   source.value = EXAMPLES[button.dataset.example];
   setSequenceName(button.dataset.example);
-  environment.load(button.dataset.example === "vespula" ? VESPULA_MAPPING :
-    button.dataset.example === "feedback" ? FEEDBACK_MAPPING : DEFAULT_MAPPING);
+  environment.load(EXAMPLE_MAPPINGS[button.dataset.example] || DEFAULT_MAPPING);
   updateEditor();
   source.focus();
   source.setSelectionRange(0, 0);

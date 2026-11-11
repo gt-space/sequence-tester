@@ -1,18 +1,74 @@
-"""Conservative source checks against Luna's *actual* Python binding signatures.
+"""Conservative static checks against Luna's public PyO3 API contract.
 
-Only statically provable mismatches fail. Expressions of unknown type are checked
-again by the simulator when executed. This module has no abort-stage semantics.
+Unknown/dynamic types are deliberately left for simulated runtime validation;
+we only reject calls when their static incompatibility can be demonstrated.
 """
 
 import ast
 
-from luna_contract import (COMMON_EXPORTS, CONSTRUCTORS, FUNCTIONS, METHODS,
-                           OTHER_CLASSES, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES)
+from luna_contract import COMMON_EXPORTS, CONSTRUCTORS, FUNCTIONS, METHODS, OTHER_CLASSES, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES
 
 
-def issue(message, node, severity="error"):
-    return {"stage": "api", "severity": severity, "message": message,
+def issue(message, node, severity="error", stage="api"):
+    return {"stage": stage, "severity": severity, "message": message,
             "line": getattr(node, "lineno", 0), "column": getattr(node, "col_offset", -1) + 1}
+
+
+def literal_integer(node):
+    if isinstance(node, ast.Constant) and type(node.value) is int:
+        return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        value = literal_integer(node.operand)
+        if value is not None:
+            return -value if isinstance(node.op, ast.USub) else value
+    return None
+
+
+def validate_abort_expression(expression, valves, sensors, node):
+    """Validate an expression in the *separate* Luna abort worker's namespace."""
+    problems = []
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except SyntaxError as exc:
+        return None, [issue(f"Invalid abort condition: {exc.msg}", node)]
+    available = set(valves) | set(sensors) | set(UNIT_CONSTANTS) | {
+        "True", "False", "None", "abs", "min", "max", "round", "int", "float", "bool",
+        "OPEN", "CLOSED", "ValveState", "read_umbilical_voltage", "reco_recvd_launch",
+        "curr_abort_stage", "curr_abort_condition", "aborted_in_this_stage",
+    }
+    allowed_nodes = (
+        ast.Expression, ast.BoolOp, ast.BinOp, ast.UnaryOp, ast.Compare,
+        ast.Call, ast.Attribute, ast.Name, ast.Load, ast.Constant,
+        ast.And, ast.Or, ast.Not, ast.Add, ast.Sub, ast.Mult, ast.Div,
+        ast.Mod, ast.Pow, ast.USub, ast.UAdd, ast.Eq, ast.NotEq,
+        ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot,
+    )
+    for item in ast.walk(tree):
+        if not isinstance(item, allowed_nodes):
+            problems.append(issue(f"Abort expression uses unsupported construct: {type(item).__name__}", node))
+            break
+        if isinstance(item, ast.Name) and item.id not in available:
+            problems.append(issue(f"Abort condition references '{item.id}', which is unavailable in Luna's separate abort process", node))
+        if isinstance(item, ast.Attribute):
+            if not (isinstance(item.value, ast.Name) and item.value.id in valves and item.attr in {"is_open", "is_closed"}) and not (
+                isinstance(item.value, ast.Name) and item.value.id in sensors and item.attr == "read"
+            ) and not (isinstance(item.value, ast.Name) and item.value.id == "ValveState" and item.attr in VALVE_STATES):
+                problems.append(issue(f"Unsupported attribute '.{item.attr}' in abort condition", node))
+        if isinstance(item, ast.Call):
+            allowed_builtin = isinstance(item.func, ast.Name) and item.func.id in {
+                "abs", "min", "max", "round", "int", "float", "bool"
+            }
+            allowed_readonly = isinstance(item.func, ast.Name) and item.func.id in {
+                "read_umbilical_voltage", "reco_recvd_launch", "curr_abort_stage",
+                "curr_abort_condition", "aborted_in_this_stage",
+            } and not item.args and not item.keywords
+            allowed_device = isinstance(item.func, ast.Attribute) and isinstance(item.func.value, ast.Name) and (
+                (item.func.value.id in sensors and item.func.attr == "read") or
+                (item.func.value.id in valves and item.func.attr in {"is_open", "is_closed"})
+            ) and not item.args and not item.keywords
+            if not (allowed_builtin or allowed_device or allowed_readonly):
+                problems.append(issue("Abort condition can only call sensor reads, valve state checks, or safe numeric builtins", node))
+    return (compile(tree, "<abort_condition>", "eval") if not problems else None), problems
 
 
 class LunaApiChecker(ast.NodeVisitor):
@@ -32,20 +88,22 @@ class LunaApiChecker(ast.NodeVisitor):
 
     def type_of(self, node):
         if isinstance(node, ast.Constant):
-            if type(node.value) is bool:
+            if isinstance(node.value, bool):
                 return "bool"
-            if type(node.value) is str:
+            if isinstance(node.value, str):
                 return "str"
-            if type(node.value) is int:
+            if isinstance(node.value, int):
                 return "int"
-            if type(node.value) is float:
+            if isinstance(node.value, float):
                 return "float"
             if node.value is None:
                 return "none"
         if isinstance(node, ast.Name):
+            if node.id in ("True", "False"):
+                return "bool"
             return self.types.get(node.id, "unknown")
-        if isinstance(node, ast.Lambda):
-            return "callable"
+        if isinstance(node, (ast.Lambda, ast.GeneratorExp)):
+            return "callable" if isinstance(node, ast.Lambda) else "unknown"
         if isinstance(node, ast.Dict):
             return "dict"
         if isinstance(node, ast.Tuple):
@@ -76,7 +134,7 @@ class LunaApiChecker(ast.NodeVisitor):
                     kind = self.types.get(node.func.value.id, "unknown")
                     return "float" if kind == "sensor:unknown" else kind.replace("sensor:", "quantity:")
                 return "bool" if name in {"is_open", "is_closed"} else "unknown"
-            if owner is None and name in CONSTRUCTORS:
+            if name in CONSTRUCTORS and owner is None:
                 if name in UNIT_CLASSES:
                     return f"quantity:{UNIT_CLASSES[name]}"
                 if name == "Valve":
@@ -84,8 +142,10 @@ class LunaApiChecker(ast.NodeVisitor):
                 if name == "Sensor":
                     first = node.args[0] if node.args else None
                     if isinstance(first, ast.Constant) and isinstance(first.value, str):
-                        return f"sensor:{self.sensors.get(first.value, {}).get('unit', 'unknown')}"
+                        unit = self.sensors.get(first.value, {}).get("unit", "unknown")
+                        return f"sensor:{unit}"
                     return "sensor:unknown"
+                return "unknown"
             if owner is None and name in {"reco_recvd_launch", "aborted_in_this_stage"}:
                 return "bool"
             if owner is None and name in {"curr_abort_stage", "curr_abort_condition"}:
@@ -98,7 +158,8 @@ class LunaApiChecker(ast.NodeVisitor):
         if isinstance(func, ast.Name):
             return self.aliases.get(func.id, func.id), None
         if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
-            if func.value.id in self.common_modules:
+            base = func.value.id
+            if base in self.common_modules:
                 return func.attr, None
         if isinstance(func, ast.Attribute):
             kind = self.type_of(func.value)
@@ -151,6 +212,8 @@ class LunaApiChecker(ast.NodeVisitor):
                 pool = self.valves if name == "Valve" else self.sensors
                 if first.value not in pool:
                     self.record(f"{name} '{first.value}' is not in the Test Environment", node)
+        if name == "create_abort_stage" and owner is None:
+            self.check_abort_config(node)
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
@@ -211,14 +274,41 @@ class LunaApiChecker(ast.NodeVisitor):
                 if actual == "none":
                     continue
                 kind = kind[7:-1]
-            valid = {"Duration": {"quantity:s"}, "String": {"str"}, "bool": {"bool"},
-                     "&PyAny": {"callable"}, "&PyDict": {"dict"}, "u32": {"int"},
-                     "i64": {"int"}, "f64": {"int", "float"}}.get(kind)
+            valid = {
+                "Duration": {"quantity:s"}, "String": {"str"}, "bool": {"bool"},
+                "&PyAny": {"callable"}, "&PyDict": {"dict"},
+                "u32": {"int"}, "i64": {"int"}, "f64": {"int", "float"},
+            }.get(kind)
             if valid and actual not in valid:
                 self.record(f"{name}() parameter '{param}' expects {kind}, got {actual}", value)
-            if kind == "u32" and isinstance(value, ast.Constant) and type(value.value) is int:
-                if not 0 <= value.value <= 0xFFFFFFFF:
-                    self.record(f"{name}() parameter '{param}' must fit an unsigned 32-bit integer", value)
+            value_integer = literal_integer(value)
+            if kind == "u32" and value_integer is not None and not 0 <= value_integer <= 0xFFFFFFFF:
+                self.record(f"{name}() parameter '{param}' must fit an unsigned 32-bit integer", value)
+
+    def check_abort_config(self, node):
+        values = {param: arg for (param, _), arg in zip(FUNCTIONS["create_abort_stage"], node.args)}
+        values.update({keyword.arg: keyword.value for keyword in node.keywords if keyword.arg})
+        condition = values.get("abort_condition")
+        if isinstance(condition, ast.Constant) and isinstance(condition.value, str):
+            _, errors = validate_abort_expression(condition.value, self.valves, self.sensors, condition)
+            self.errors.extend(errors)
+        safe = values.get("safe_valve_states")
+        if not isinstance(safe, ast.Dict):
+            return
+        for key, value in zip(safe.keys, safe.values):
+            if self.type_of(key) not in ("valve", "unknown"):
+                self.record("Abort safe-state key must be a Valve object", key)
+            if not isinstance(value, ast.Tuple) or len(value.elts) != 2:
+                self.record("Abort safe state must be (ValveState, integer milliseconds)", value)
+                continue
+            state, timer = value.elts
+            if self.type_of(state) not in ("valvestate", "unknown"):
+                self.record("Abort safe state must use OPEN, CLOSED, or ValveState", state)
+            if self.type_of(timer) not in ("int", "unknown"):
+                self.record("Abort safing timer must be an integer number of milliseconds, not a Duration", timer)
+            delay_ms = literal_integer(timer)
+            if delay_ms is not None and not 0 <= delay_ms <= 0xFFFFFFFF:
+                self.record("Abort safing timer must be between 0 and 4294967295 ms", timer)
 
 
 def analyze_luna_api(tree, valves, sensors):

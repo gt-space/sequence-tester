@@ -1,6 +1,7 @@
-"""Fail on drift between Luna main's PyO3 Python API and the checked contract.
+"""Fail if Luna's public Python sequence API drifts from our checked contract.
 
-Usage: python scripts/check_luna_contract.py /path/to/luna-main
+Usage: python scripts/check_luna_contract.py /path/to/luna-checkout
+Always run this against Luna's *main* branch, not an arbitrary feature branch.
 """
 
 import re
@@ -47,7 +48,8 @@ def public_pyo3_methods(source, cls):
                       source, re.MULTILINE | re.DOTALL)
     if not block:
         raise AssertionError(f"Missing #[pymethods] block for {cls}")
-    return set(re.findall(r"\bpub\s+fn\s+(\w+)\s*\(", block.group(1)))
+    code = block.group(1)
+    return set(re.findall(r"\bpub\s+fn\s+(\w+)\s*\(", code))
 
 
 def check(repo):

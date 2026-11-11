@@ -49,6 +49,17 @@ export function valveStateAt(initial, events, name, time) {
   return state;
 }
 
+export function abortStatusAt(events, time) {
+  let stage = "DEFAULT";
+  let aborted = false;
+  for (const event of events) {
+    if (event.time > time) break;
+    if (event.kind === "abort_stage") stage = event.target;
+    if (event.kind === "abort") aborted = true;
+  }
+  return { stage, aborted };
+}
+
 export function sensorRateAt(sensor, initial, events, time) {
   if (sensor.mode !== "valve") return null;
   const key = sensor.valves.map(name => valveStateAt(initial, events, name, time) === "OPEN" ? "1" : "0").join("");
@@ -139,7 +150,7 @@ export function createTimelineView({ container, onJumpToSource }) {
       "aria-label": `${event.target} ${event.detail} at ${displayTime(event.time)}${event.line ? `, source line ${event.line}` : ""}`,
       "data-event-index": index
     });
-    hit.append(svg("title", {}, `${event.target}: ${event.detail} · ${displayTime(event.time)}${event.line ? ` · line ${event.line}` : ""}`));
+    hit.append(svg("title", {}, `${event.target}: ${event.detail}${event.origin === "abort" ? " (abort safe state)" : ""} · ${displayTime(event.time)}${event.line ? ` · line ${event.line}` : ""}`));
     const jump = e => {
       e.stopPropagation();
       hovered = event.time;
@@ -196,6 +207,64 @@ export function createTimelineView({ container, onJumpToSource }) {
       drawSegment(previousTime, duration, state);
       for (const event of changes) chart.append(marker(event, event.eventIndex, event.detail === "OPEN" ? hi : lo));
     });
+    drawAbortMarkers(chart, height);
+    chart.append(overlays.at(-1).overlay);
+    return chart;
+  }
+
+  function drawAbortMarkers(chart, height) {
+    payload.events.forEach((event, index) => {
+      if (event.kind !== "abort") return;
+      const x = xAt(event.time);
+      chart.append(svg("rect", { x, y: 22, width: Math.max(0, RIGHT - x),
+        height: height - 48, class: "timeline-aborted-region" }));
+      const markerLine = svg("line", { x1: x, x2: x, y1: 21, y2: height - 26,
+        class: `timeline-abort-marker${selectedEvent === index || (selectedLine && selectedLine === event.line) ? " selected" : ""}`,
+        tabindex: event.line ? 0 : -1, role: "button",
+        "aria-label": `Abort triggered at ${displayTime(event.time)}; show source line ${event.line}` });
+      markerLine.append(svg("title", {}, `${event.target}: ${event.detail}`));
+      const jump = e => { e.stopPropagation(); selectedEvent = index; hovered = event.time; onJumpToSource(event.line, index); };
+      markerLine.addEventListener("click", jump);
+      markerLine.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); jump(e); }
+      });
+      chart.append(markerLine);
+    });
+  }
+
+  function abortChart() {
+    const stages = payload.abort_stages;
+    const row = 43;
+    const height = Math.max(92, 54 + stages.length * row);
+    const chart = makeChart("Abort stages over virtual time with trigger markers and synchronized cursors", height);
+    const activations = payload.events.filter(event => event.kind === "abort_stage").sort((a, b) => a.time - b.time);
+    stages.forEach((stage, index) => {
+      const y = 39 + index * row;
+      chart.append(svg("text", { x: 16, y: y + 4, class: "timeline-track-name" }, stage.name));
+      chart.append(svg("line", { x1: LEFT, x2: RIGHT, y1: y, y2: y, class: "timeline-rail" }));
+      activations.forEach((active, activeIndex) => {
+        if (active.target !== stage.name) return;
+        const next = activations[activeIndex + 1];
+        const stop = next ? next.time : duration;
+        chart.append(svg("line", { x1: xAt(active.time), x2: xAt(stop), y1: y, y2: y,
+          class: "timeline-abort-stage-active" }));
+        const dot = svg("circle", { cx: xAt(active.time), cy: y, r: 5,
+          class: "timeline-stage-dot", role: "button", tabindex: 0,
+          "aria-label": `Activated ${stage.name} at ${displayTime(active.time)}; line ${active.line}` });
+        dot.addEventListener("click", e => { e.stopPropagation(); onJumpToSource(active.line); });
+        dot.addEventListener("keydown", e => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onJumpToSource(active.line); }
+        });
+        chart.append(dot);
+      });
+      if (stage.triggered !== null) {
+        const x = xAt(stage.triggered);
+        chart.append(svg("circle", { cx: x, cy: y, r: 7, class: "timeline-abort-dot" }));
+        chart.append(svg("text", { x: Math.min(RIGHT - 50, x + 12), y: y - 9,
+          class: "timeline-abort-label" }, "ABORT"));
+      }
+    });
+    drawAbortMarkers(chart, height);
     chart.append(overlays.at(-1).overlay);
     return chart;
   }
@@ -250,8 +319,42 @@ export function createTimelineView({ container, onJumpToSource }) {
         chart.append(button);
       }
     });
+    drawAbortMarkers(chart, height);
     chart.append(overlays.at(-1).overlay);
     return chart;
+  }
+
+  function appendAbortStageSection() {
+    if (!payload.abort_stages.length) return;
+    const section = el("section", "timeline-section abort-timeline");
+    const heading = el("div", "timeline-section-heading");
+    heading.append(el("h3", "", "Abort stages"), el("span", "", "CONDITIONS / SAFE STATES"));
+    section.append(heading, abortChart());
+    const cards = el("div", "abort-stage-cards");
+    payload.abort_stages.forEach(stage => {
+      const card = el("button", "abort-stage-card");
+      card.type = "button";
+      card.classList.add(stage.triggered !== null ? "triggered" : stage.activated.length ? "untested" : "inactive");
+      const title = el("div", "abort-card-header");
+      title.append(el("strong", "", stage.name), el("span", "abort-card-status",
+        stage.triggered !== null ? `TRIGGERED · ${displayTime(stage.triggered)}` :
+        stage.activated.length ? "CONDITION NEVER TRIGGERED" : "STAGE NEVER ACTIVATED"));
+      card.append(title, el("code", "abort-condition", stage.condition));
+      if (stage.safe_states.length) {
+        const states = el("div", "abort-safe-states");
+        stage.safe_states.forEach(({ name, state, delay_ms }) =>
+          states.append(el("span", `abort-safe-state ${state === "OPEN" ? "state-open" : "state-closed"}`,
+            `${name} → ${state} · ${delay_ms}ms`)));
+        card.append(states);
+      } else card.append(el("small", "", "No valves explicitly safed in this stage"));
+      if (stage.defined_line) {
+        card.title = `Show abort stage definition at line ${stage.defined_line}`;
+        card.onclick = () => onJumpToSource(stage.defined_line);
+      } else card.disabled = true;
+      cards.append(card);
+    });
+    section.append(cards);
+    container.append(section);
   }
 
   function updateCursors() {
@@ -304,6 +407,18 @@ export function createTimelineView({ container, onJumpToSource }) {
     thead.append(header);
     table.append(thead);
     const body = el("tbody");
+    if (payload.abort_stages.length) {
+      const stageRow = el("tr");
+      stageRow.append(el("th", "", "ABORT STAGE"));
+      const statusRow = el("tr");
+      statusRow.append(el("th", "", "ABORT STATUS"));
+      for (const cursor of all) {
+        const value = abortStatusAt(payload.events, cursor.time);
+        stageRow.append(el("td", "", value.stage));
+        statusRow.append(el("td", value.aborted ? "state-closed" : "", value.aborted ? "ABORTED" : "NORMAL"));
+      }
+      body.append(stageRow, statusRow);
+    }
     const valveNames = Object.keys(payload.initial_valves);
     for (const name of valveNames) {
       const row = el("tr");
@@ -360,6 +475,7 @@ export function createTimelineView({ container, onJumpToSource }) {
     stitle.append(el("h3", "", "Sensor readings"), el("span", "", "TIME PROFILES / VALVE-DRIVEN"));
     sensorSection.append(stitle, sensorChart());
     container.append(sensorSection);
+    appendAbortStageSection();
     const controls = el("div", "timeline-cursor-controls");
     hint = el("span", "timeline-hint");
     chips = el("div", "timeline-cursor-chips");
@@ -378,6 +494,7 @@ export function createTimelineView({ container, onJumpToSource }) {
         initial_valves: simulation.initial_valves || {},
         sensors: simulation.sensors || {},
         sensor_read_lines: simulation.sensor_read_lines || {},
+        abort_stages: simulation.abort_stages || [],
         events: [...(result.events || [])].sort((a, b) => a.time - b.time)
       };
       duration = Math.max(.001, Number(result.virtual_time) || 0);

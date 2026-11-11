@@ -204,6 +204,8 @@ class SequenceAborted(BaseException):
 
 
 class Simulator:
+    MAX_EVENTS = 10000
+
     def __init__(self, valves, sensors, clock_mode="deterministic", speed=5, max_duration=600):
         self.time = 0.0
         self.clock_mode = clock_mode
@@ -213,6 +215,9 @@ class Simulator:
         self.epoch_start = host_time.time()
         self.wait_errors = []
         self.events = []
+        self.commanded_valves = set()
+        self.total_valve_commands = 0
+        self.repeated_valve_commands = 0
         self.initial_valves = dict(valves)
         self.valves = dict(valves)
         self.sensors = sensors
@@ -252,10 +257,12 @@ class Simulator:
     def event(self, kind, target, detail, *, line=None, sync=True, **extra):
         if sync:
             self.sync_clock()
-        if len(self.events) < 1000:
-            self.events.append(dict(time=round(self.time, 4), kind=kind,
-                                    target=target, detail=str(detail),
-                                    line=self.source_line() if line is None else line, **extra))
+        if len(self.events) >= self.MAX_EVENTS:
+            raise SimulationLimit(f"More than {self.MAX_EVENTS:,} distinct simulation events; "
+                                  "reduce rapid valve switching to keep the timeline usable")
+        self.events.append(dict(time=round(self.time, 4), kind=kind,
+                                target=target, detail=str(detail),
+                                line=self.source_line() if line is None else line, **extra))
 
     def define_abort_stage(self, name, condition, states, line):
         self.sync_clock()
@@ -505,16 +512,23 @@ class Simulator:
                 return isinstance(other, Valve) and self.name == other.name
 
             def actuate(self, opening):
-                sim.sync_clock()
                 if type(opening) is not bool:
-                    raise TypeError("Valve.actuate(open) requires a bool")
+                    raise TypeError("Valve.actuate(open) expects a bool (True or False)")
+                sim.sync_clock()
+                sim.total_valve_commands += 1
                 state = "OPEN" if opening else "CLOSED"
-                if sim.valves[self.name] != state:
+                changed = sim.valves[self.name] != state
+                if changed:
                     for sensor_name, config in sim.sensors.items():
                         if config.get("mode") == "valve" and self.name in config["valves"]:
                             sim.record_sensor(sensor_name)
                 sim.valves[self.name] = state
-                sim.event("valve", self.name, state)
+                # Reissuing an unchanged state does not add another timeline transition.
+                if changed or self.name not in sim.commanded_valves:
+                    sim.event("valve", self.name, state)
+                else:
+                    sim.repeated_valve_commands += 1
+                sim.commanded_valves.add(self.name)
 
             def open(self):
                 self.actuate(True)
@@ -587,7 +601,7 @@ class Simulator:
 
         def interval(count, period):
             if type(count) is not int:
-                raise TypeError("interval count must be an integer")
+                raise TypeError("interval(count, period) expects an integer count")
             if not isinstance(period, Quantity) or period.kind != "s":
                 raise TypeError("interval expects a Duration")
             sim.sync_clock()
@@ -665,6 +679,52 @@ class Simulator:
             setattr(module, key, value)
         module.__all__ = list(names)
         return module
+
+
+def simulation_integrity_errors(sim, result):
+    """Detect internal inconsistencies before displaying a 'passed' simulation."""
+    errors = []
+    events = result["events"]
+    # Abort safing is performed by the simulated abort worker, not by Valve.actuate().
+    valve_events = [event for event in events if event["kind"] == "valve" and event.get("origin") != "abort"]
+    if len(valve_events) + sim.repeated_valve_commands != sim.total_valve_commands:
+        errors.append("Valve command accounting does not match the recorded timeline")
+
+    states = dict(sim.initial_valves)
+    previous_time = -1.0
+    for event in events:
+        at = event.get("time")
+        if (isinstance(at, bool) or not isinstance(at, (int, float)) or not math.isfinite(at)
+                or at < previous_time or at < 0 or at > sim.time + 0.0001):
+            errors.append("Event timestamps are invalid or out of order")
+            break
+        previous_time = at
+        if event["kind"] == "valve":
+            if event["target"] not in states or event["detail"] not in {"OPEN", "CLOSED"}:
+                errors.append("Timeline contains an unknown valve or state")
+                break
+            states[event["target"]] = event["detail"]
+    if states != result["valves"]:
+        errors.append("Final valve states differ from the replayed timeline")
+
+    for name, sensor in result["simulation"]["sensors"].items():
+        samples = sensor["samples"]
+        if not samples:
+            errors.append(f"Sensor '{name}' has no recorded samples")
+            continue
+        if sensor.get("mode") == "valve":
+            previous = -1.0
+            for sample in samples:
+                at, value = sample["at"], sample["value"]
+                if (not isinstance(at, (int, float)) or not math.isfinite(at)
+                        or at < previous or at < 0 or at > sim.time + 0.000001
+                        or not isinstance(value, (int, float)) or not math.isfinite(value)):
+                    errors.append(f"Sensor '{name}' has invalid or unordered trace samples")
+                    break
+                previous = at
+            if not math.isclose(samples[-1]["value"], sim.dynamic_values[name], rel_tol=1e-9, abs_tol=1e-8):
+                errors.append(f"Sensor '{name}' trace does not match the final simulated value")
+    return errors
 
 
 def run_sequence(source, mapping, execute=False, options=None):
@@ -756,6 +816,10 @@ def run_sequence(source, mapping, execute=False, options=None):
                 stage["defined_line"]))
     result["stdout"] = output.getvalue()[:10000]
     result["diagnostics"].extend(sim.runtime_diagnostics)
+    if sim.repeated_valve_commands:
+        result["diagnostics"].append(diagnostic("runtime", "warning",
+            f"Collapsed {sim.repeated_valve_commands:,} repeated valve commands that did not change state; "
+            "all state transitions remain in the timeline"))
     result["events"] = sim.events
     result["virtual_time"] = round(sim.time, 4)
     result["timing"] = sim.timing_summary()
@@ -767,4 +831,8 @@ def run_sequence(source, mapping, execute=False, options=None):
         "abort_stages": sim.coverage(),
         "aborted": sim.aborted,
     }
+    if result["checks"]["runtime"] == "pass":
+        for problem in simulation_integrity_errors(sim, result):
+            result["diagnostics"].append(diagnostic("runtime", "error", f"Simulation integrity check failed: {problem}"))
+            result["checks"]["runtime"] = "fail"
     return result

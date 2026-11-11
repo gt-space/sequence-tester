@@ -13,6 +13,10 @@ A public, no-login sequence checker for [Luna](https://github.com/gt-space/luna)
 7. Valve-driven sensors with complete valve-state truth tables, linear rates, and optional bounds for feedback control loops.
 8. Synchronized valve-state, sensor, and abort-stage plots, with up to four pinned time cursors and per-trace readouts.
 9. Click a valve transition, abort marker, safe-state transition, sensor source-link, or trace event to highlight the originating Python line.
+10. Name a sequence test using the **Test name** field. Downloads use `<test-name>.py`, and environment exports use `<test-name>-environment.json`. Opening a `.py` file restores its base name; the current name is remembered in this browser.
+11. The **Saved sequences** sidebar automatically remembers tests when you run a simulation, storing both the Python source and Test Environment in this browser. **Save current test** also saves without running. Select a saved test to restore both editors, or remove it with ×. Tests are keyed by their name, so running a modified test with the same name updates its saved version. The library holds up to 50 tests without silently evicting older ones. Browser storage is not synced or backed up; export `.py` and environment JSON files to move a test to another device.
+
+The timeline records the first valve command and every actual OPEN/CLOSED transition, while collapsing redundant commands that repeat an unchanged state. The diagnostics show how many redundant commands were collapsed. Simulations with more than 10,000 distinct events fail explicitly rather than silently truncating the valve history; a successful run always has a complete valve-state timeline.
 
 **Not implemented:** valve fault injection, hardware feedback simulation, real asynchronous FC/SAM communication, hardware-confirmed abort stages, or physical SAM testing. Passing these checks does not demonstrate that a sequence is safe to run on hardware.
 
@@ -30,9 +34,11 @@ Open `http://localhost:8000`. The deployed site serves [Pyodide](https://pyodide
 python3 -m unittest discover -s tests -v
 node --check src/app.js
 node --check src/environment.js
+node --check src/filename.js
+node --check src/saved-sequences.js
 node --check src/timeline.js
 node --check src/worker.js
-node --test tests/test_environment.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
+node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_saved_sequences.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
 python3 scripts/check_luna_contract.py /path/to/luna-main
 ```
 

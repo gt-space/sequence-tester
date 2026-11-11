@@ -32,10 +32,19 @@ jobs:
         run: |
           node --check src/app.js
           node --check src/environment.js
+          node --check src/filename.js
+          node --check src/saved-sequences.js
           node --check src/highlight.js
           node --check src/timeline.js
           node --check src/worker.js
-          node --test tests/test_environment.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
+          node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_saved_sequences.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
+      - name: Install browser and Pyodide test runtime
+        run: |
+          npm install --no-save --prefix /tmp/sequence-browser playwright@1.56.1 pyodide@314.0.7
+          /tmp/sequence-browser/node_modules/.bin/playwright install --with-deps chromium
+          ln -s /tmp/sequence-browser/node_modules/pyodide src/pyodide
+      - name: End-to-end Pyodide and plot cursor regression
+        run: NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_browser.cjs
 
   deploy:
     if: github.event_name == 'push'
@@ -57,12 +66,14 @@ jobs:
         run: |
           mkdir -p site-dist/src
           cp index.html site-dist/
-          cp src/app.js src/environment.js src/highlight.js src/timeline.js src/worker.js src/styles.css src/engine.py src/luna_contract.py src/luna_validation.py src/yjsplogo.png site-dist/src/
+          cp src/app.js src/environment.js src/filename.js src/saved-sequences.js src/highlight.js src/timeline.js src/worker.js src/styles.css src/engine.py src/luna_contract.py src/luna_validation.py src/yjsplogo.png site-dist/src/
           cp -r /tmp/sequence-pyodide/node_modules/pyodide site-dist/src/pyodide
           sed -i "s|./src/app.js|./src/app.js?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./src/styles.css|./src/styles.css?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./highlight.js|./highlight.js?build=${GITHUB_SHA}|" site-dist/src/app.js
           sed -i "s|./environment.js|./environment.js?build=${GITHUB_SHA}|" site-dist/src/app.js
+          sed -i "s|./filename.js|./filename.js?build=${GITHUB_SHA}|" site-dist/src/app.js
+          sed -i "s|./saved-sequences.js|./saved-sequences.js?build=${GITHUB_SHA}|" site-dist/src/app.js
           sed -i "s|./timeline.js|./timeline.js?build=${GITHUB_SHA}|" site-dist/src/app.js
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -57,8 +57,9 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     assert.equal(await page.locator("#sequence-name").inputValue(), "long-cfill-regression");
 
     await page.locator("#simulate").click();
-    await page.waitForFunction(() => document.querySelector("#validation-state")?.textContent === "CHECKED" &&
+    await page.waitForFunction(() => ["pass", "warning"].includes(document.querySelector("#validation-state")?.dataset.state) &&
       document.querySelector('[data-check="runtime"]')?.dataset.state === "pass", null, { timeout: 30000 });
+    assert.match(await page.locator("#diagnostics").textContent(), /Collapsed 500 repeated valve commands/);
     assert.equal(await page.locator("#event-count").textContent(), "4");
     assert.equal(await page.locator("#saved-count").textContent(), "1");
     assert.match(await page.locator(".saved-load").first().textContent(), /long-cfill-regression\.py/);

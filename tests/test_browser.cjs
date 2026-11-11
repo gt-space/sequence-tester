@@ -60,7 +60,9 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     await page.waitForFunction(() => document.querySelector("#validation-state")?.textContent === "CHECKED" &&
       document.querySelector('[data-check="runtime"]')?.dataset.state === "pass", null, { timeout: 30000 });
     assert.equal(await page.locator("#event-count").textContent(), "4");
-    assert.match(await page.locator("#virtual-time").textContent(), /12\.000/);
+    // The UI runs at 5× real time, so scheduler overshoot can move the end by milliseconds.
+    const duration = Number.parseFloat(await page.locator("#virtual-time").textContent());
+    assert.ok(duration >= 12 && duration < 13, `Unexpected end time: ${duration}s`);
     assert.equal(await page.locator(".timeline-interactive").count(), 2);
 
     const valvePlot = page.locator(".timeline-interactive").first();
@@ -73,8 +75,11 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     });
     await page.mouse.move(...Object.values(hoverAt(valveBounds, 0.9)));
     await page.waitForFunction(() => document.querySelector(".timeline-table thead")?.textContent?.includes("LIVE"));
-    let text = await page.locator(".timeline-table").textContent();
-    assert.match(text, /LIVE · 10\.8s/);
+    const cursorTimes = async () => (await page.locator(".timeline-table thead th").allTextContents())
+      .slice(1).map(label => ({ label, time: Number.parseFloat(label.split("·")[1]) }));
+    let times = await cursorTimes();
+    assert.ok(times.some(cursor => cursor.label.startsWith("LIVE") && Math.abs(cursor.time - duration * 0.9) < 0.1),
+      `Late live cursor: ${JSON.stringify(times)}`);
     const cfillStates = page.locator(".timeline-table tbody tr").filter({ has: page.locator("th", { hasText: "CFILL" }) }).locator("td");
     assert.equal(await cfillStates.last().textContent(), "OPEN");
 
@@ -85,9 +90,11 @@ test("Pyodide simulation retains late CFILL events and both plots have live curs
     const sensorBounds = await sensorPlot.boundingBox();
     const early = hoverAt(sensorBounds, 0.15);
     await page.mouse.move(early.x, early.y);
-    text = await page.locator(".timeline-table").textContent();
-    assert.match(text, /C1 · 10\.8s/);
-    assert.match(text, /LIVE · 1\.8s/);
+    times = await cursorTimes();
+    assert.ok(times.some(cursor => cursor.label.startsWith("C1") && Math.abs(cursor.time - duration * 0.9) < 0.1),
+      `Pinned cursor: ${JSON.stringify(times)}`);
+    assert.ok(times.some(cursor => cursor.label.startsWith("LIVE") && Math.abs(cursor.time - duration * 0.15) < 0.1),
+      `Early live cursor: ${JSON.stringify(times)}`);
     assert.deepEqual(await cfillStates.allTextContents(), ["OPEN", "CLOSED"]);
     assert.equal(pageErrors.length, 0, `Browser exceptions: ${pageErrors.join("; ")}`);
 

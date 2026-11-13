@@ -10,7 +10,7 @@ import time as host_time
 import traceback
 import types
 
-from luna_contract import API, FUNCTIONS, METHODS, UNIT_CONSTANTS, UNIT_CLASSES, VALVE_STATES
+from luna_contract import API, FUNCTIONS, METHODS, UNIT_CONSTANTS, UNIT_CLASSES, VALVE_STATES, SENSOR_COMPARISON_ORDER
 from luna_validation import analyze_luna_api, validate_abort_expression
 
 IMPORTS = {"common", "time", "math"}
@@ -555,17 +555,42 @@ class Simulator:
             def read(self):
                 return sim.read(self.name)
 
-            def __gt__(self, other):
-                return self.read() > other
-
-            def __ge__(self, other):
-                return self.read() >= other
+            def _compare(self, other, operation):
+                # Luna's PyO3 Sensor.__richcmp__ currently evaluates
+                # other.rich_compare(self.read(), op), reversing the operands.
+                # The contract extractor detects if upstream changes this.
+                reading = self.read()
+                left, right = ((other, reading) if SENSOR_COMPARISON_ORDER == "reversed"
+                               else (reading, other))
+                if operation == "lt":
+                    return left < right
+                if operation == "le":
+                    return left <= right
+                if operation == "gt":
+                    return left > right
+                if operation == "ge":
+                    return left >= right
+                if operation == "eq":
+                    return left == right
+                return left != right
 
             def __lt__(self, other):
-                return self.read() < other
+                return self._compare(other, "lt")
 
             def __le__(self, other):
-                return self.read() <= other
+                return self._compare(other, "le")
+
+            def __gt__(self, other):
+                return self._compare(other, "gt")
+
+            def __ge__(self, other):
+                return self._compare(other, "ge")
+
+            def __eq__(self, other):
+                return self._compare(other, "eq")
+
+            def __ne__(self, other):
+                return self._compare(other, "ne")
 
         def wait_for(duration):
             if not isinstance(duration, Quantity) or duration.kind != "s":
@@ -677,6 +702,16 @@ class Simulator:
             names[name] = Quantity(factor, kind)
         for key, value in names.items():
             setattr(module, key, value)
+        # Fail closed when the manifest gained exports or methods without a
+        # corresponding simulator implementation. CI exercises this path.
+        missing = API - set(names)
+        unexpected = set(names) - API
+        if missing or unexpected:
+            raise RuntimeError(f"Luna simulator export mismatch: missing={missing}, unexpected={unexpected}")
+        for cls, simulated in (("Valve", Valve), ("Sensor", Sensor)):
+            methods = {name for name in vars(simulated) if not name.startswith("_")}
+            if methods != set(METHODS[cls]):
+                raise RuntimeError(f"Luna simulator {cls} methods mismatch: {methods} != {set(METHODS[cls])}")
         module.__all__ = list(names)
         return module
 
@@ -739,7 +774,9 @@ def run_sequence(source, mapping, execute=False, options=None):
         return result
     result["checks"]["syntax"] = "pass"
     for stage in ("names", "api"):
-        result["checks"][stage] = "fail" if any(d["stage"] == stage and d["severity"] == "error" for d in result["diagnostics"]) else "pass"
+        result["checks"][stage] = "fail" if any(d["stage"] == stage and d["severity"] == "error" for d in result["diagnostics"]) else (
+            "partial" if stage == "api" and any(d["stage"] == "api" and d["message"].startswith("API not fully verified:")
+                                                for d in result["diagnostics"]) else "pass")
     if not execute or any(d["severity"] == "error" for d in result["diagnostics"]):
         return result
 

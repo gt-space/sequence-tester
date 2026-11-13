@@ -6,7 +6,7 @@ we only reject calls when their static incompatibility can be demonstrated.
 
 import ast
 
-from luna_contract import COMMON_EXPORTS, CONSTRUCTORS, FUNCTIONS, METHODS, OTHER_CLASSES, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES
+from luna_contract import COMMON_EXPORTS, CONSTRUCTORS, FUNCTIONS, METHODS, OTHER_CLASSES, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES, SENSOR_COMPARISON_ORDER
 
 
 def issue(message, node, severity="error", stage="api"):
@@ -82,6 +82,7 @@ class LunaApiChecker(ast.NodeVisitor):
         self.types.update({"OPEN": "valvestate", "CLOSED": "valvestate"})
         self.common_modules = {"common"}
         self.aliases = {}
+        self.call_aliases = {}
 
     def record(self, message, node, severity="error"):
         self.errors.append(issue(message, node, severity))
@@ -156,7 +157,16 @@ class LunaApiChecker(ast.NodeVisitor):
 
     def call_target(self, func):
         if isinstance(func, ast.Name):
+            if func.id in self.call_aliases:
+                return self.call_aliases[func.id]
             return self.aliases.get(func.id, func.id), None
+        if (isinstance(func, ast.Call) and isinstance(func.func, ast.Name) and
+                func.func.id == "getattr" and len(func.args) == 2 and not func.keywords and
+                isinstance(func.args[1], ast.Constant) and isinstance(func.args[1].value, str)):
+            kind = self.type_of(func.args[0])
+            owner = "Valve" if kind == "valve" else "Sensor" if kind.startswith("sensor:") else None
+            if owner:
+                return func.args[1].value, owner
         if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
             base = func.value.id
             if base in self.common_modules:
@@ -182,21 +192,40 @@ class LunaApiChecker(ast.NodeVisitor):
                         self.record(f"Luna's common module does not export '{item.name}'", node)
                     self.aliases[item.asname or item.name] = item.name
 
+    def _track_assignment(self, target, value):
+        if not isinstance(target, ast.Name):
+            return
+        self.types[target.id] = self.type_of(value)
+        name, owner = self.call_target(value)
+        if (owner and name in METHODS[owner]) or (owner is None and name in (set(FUNCTIONS) | set(CONSTRUCTORS))):
+            self.call_aliases[target.id] = (name, owner)
+        else:
+            self.call_aliases.pop(target.id, None)
+
     def visit_Assign(self, node):
         self.visit(node.value)
-        inferred = self.type_of(node.value)
         for target in node.targets:
-            if isinstance(target, ast.Name):
-                self.types[target.id] = inferred
+            self._track_assignment(target, node.value)
 
     def visit_AnnAssign(self, node):
         if node.value:
             self.visit(node.value)
-            if isinstance(node.target, ast.Name):
-                self.types[node.target.id] = self.type_of(node.value)
+            self._track_assignment(node.target, node.value)
 
     def visit_Call(self, node):
         name, owner = self.call_target(node.func)
+        if (isinstance(node.func, ast.Name) and node.func.id == "getattr" and
+                len(node.args) >= 2):
+            kind = self.type_of(node.args[0])
+            cls = "Valve" if kind == "valve" else "Sensor" if kind.startswith("sensor:") else None
+            if cls:
+                attr = node.args[1]
+                if isinstance(attr, ast.Constant) and isinstance(attr.value, str):
+                    if attr.value not in METHODS[cls]:
+                        self.record(f"{cls} does not expose .{attr.value}() in Luna's Python API", node)
+                else:
+                    self.record("API not fully verified: dynamic getattr() on a Luna device; "
+                                "simulation only checks executed paths", node, "warning")
         if owner and name not in METHODS[owner]:
             self.record(f"{owner} does not expose .{name}() in Luna's Python API", node)
         signature = METHODS[owner].get(name) if owner and name in METHODS[owner] else None
@@ -234,6 +263,10 @@ class LunaApiChecker(ast.NodeVisitor):
 
     def visit_Compare(self, node):
         terms = [node.left, *node.comparators]
+        if any(self.type_of(term).startswith("sensor:") for term in terms):
+            if SENSOR_COMPARISON_ORDER == "reversed":
+                self.record("Luna reverses direct Sensor comparison operands; use .read() for "
+                            "the intended threshold direction", node, "warning")
         for a, b in zip(terms, terms[1:]):
             left, right = self.type_of(a), self.type_of(b)
             if left.startswith("sensor:"):

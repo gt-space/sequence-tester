@@ -67,7 +67,7 @@ def extract(repo):
     if not set(constructors) <= classes:
         raise ValueError("Luna no longer exports required unit or mapping classes")
     unit_values = re.findall(
-        r'module\.add\("([^"]+)",\s*Py::new\(py,\s*(\w+)::new\(', mod)
+        r'module\.add\("([^"]+)",\s*Py::new\(py,\s*(\w+)::new\(', mod
     )
     constants = {}
     for name, cls in unit_values:

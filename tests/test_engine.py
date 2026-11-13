@@ -574,5 +574,44 @@ while CTPT.read() < 300*psi:
         self.assertEqual(result["timing"]["requested_speed"], 1)
 
 
+    def test_direct_sensor_comparisons_match_luna_richcmp(self):
+        # Luna currently evaluates threshold.compare(reading, op) in Sensor.__richcmp__.
+        source = (
+            "assert tank_pt > 300*psi\n"
+            "assert tank_pt >= 300*psi\n"
+            "assert not (tank_pt < 300*psi)\n"
+            "assert not (tank_pt <= 300*psi)\n"
+            "assert tank_pt == 0*psi\n"
+            "assert not (tank_pt != 0*psi)\n"
+            "assert tank_pt.read() < 300*psi\n"
+        )
+        result = self.check(source, True)
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertTrue(any("reverses direct Sensor" in d["message"] for d in result["diagnostics"]))
+
+    def test_bound_method_alias_enforces_luna_signature(self):
+        result = self.check("action = press_valve.open\naction(1)")
+        self.assertEqual(result["checks"]["api"], "fail", result["diagnostics"])
+        self.assertTrue(any("takes at most 0" in d["message"] for d in result["diagnostics"]))
+        valid = self.check("action = press_valve.open\naction()", True)
+        self.assertEqual(valid["checks"]["api"], "pass", valid["diagnostics"])
+        self.assertEqual(valid["checks"]["runtime"], "pass", valid["diagnostics"])
+
+    def test_luna_function_alias_enforces_arguments(self):
+        bad = self.check("pause = wait_for\npause(1)")
+        self.assertEqual(bad["checks"]["api"], "fail", bad["diagnostics"])
+        good = self.check("pause = wait_for\npause(10*ms)", True)
+        self.assertEqual(good["checks"]["runtime"], "pass", good["diagnostics"])
+
+    def test_getattr_literal_is_checked_and_dynamic_is_partial(self):
+        invalid = self.check("action = getattr(press_valve, 'get_name')\naction()")
+        self.assertEqual(invalid["checks"]["api"], "fail", invalid["diagnostics"])
+        literal = self.check("action = getattr(press_valve, 'open')\naction(1)")
+        self.assertEqual(literal["checks"]["api"], "fail", literal["diagnostics"])
+        dynamic = self.check("name = 'open'\naction = getattr(press_valve, name)\naction()", True)
+        self.assertEqual(dynamic["checks"]["api"], "partial", dynamic["diagnostics"])
+        self.assertEqual(dynamic["checks"]["runtime"], "pass", dynamic["diagnostics"])
+
+
 if __name__ == "__main__":
     unittest.main()

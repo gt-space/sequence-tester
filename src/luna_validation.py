@@ -5,6 +5,7 @@ we only reject calls when their static incompatibility can be demonstrated.
 """
 
 import ast
+import math
 
 from luna_contract import COMMON_EXPORTS, CONSTRUCTORS, FUNCTIONS, METHODS, OTHER_CLASSES, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES, SENSOR_COMPARISON_ORDER
 
@@ -83,6 +84,30 @@ class LunaApiChecker(ast.NodeVisitor):
         self.common_modules = {"common"}
         self.aliases = {}
         self.call_aliases = {}
+
+    def constant_number(self, node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return node.value
+        if isinstance(node, ast.Name) and node.id in {"s", "ms", "us"}:
+            return {"s": 1, "ms": .001, "us": .000001}[node.id]
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+            value = self.constant_number(node.operand)
+            return None if value is None else -value if isinstance(node.op, ast.USub) else value
+        if isinstance(node, ast.BinOp):
+            a, b = self.constant_number(node.left), self.constant_number(node.right)
+            if a is not None and b is not None:
+                try:
+                    if isinstance(node.op, ast.Mult): return a * b
+                    if isinstance(node.op, ast.Div): return a / b
+                    if isinstance(node.op, ast.Add): return a + b
+                    if isinstance(node.op, ast.Sub): return a - b
+                except (ArithmeticError, OverflowError): return math.inf
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and len(node.args) == 1:
+            if node.func.id == "Duration": return self.constant_number(node.args[0])
+            if node.func.id == "float" and isinstance(node.args[0], ast.Constant):
+                try: return float(node.args[0].value)
+                except (ValueError, TypeError): pass
+        return None
 
     def record(self, message, node, severity="error"):
         self.errors.append(issue(message, node, severity))
@@ -213,6 +238,7 @@ class LunaApiChecker(ast.NodeVisitor):
             self._track_assignment(node.target, node.value)
 
     def visit_If(self, node):
+        self.record("API not fully verified: branch-dependent bindings and unexecuted paths require review", node, "warning")
         if isinstance(node.test, ast.Constant) and not node.test.value:
             self.visit(node.test)
             start = len(self.errors)
@@ -226,7 +252,31 @@ class LunaApiChecker(ast.NodeVisitor):
         else:
             self.generic_visit(node)
 
+    def visit_FunctionDef(self, node):
+        self.record("API not fully verified: function scope, argument bindings and unexecuted paths require review", node, "warning")
+        # Do not infer a function local using a same-named outer device.
+        saved = self.types.copy(), self.aliases.copy(), self.call_aliases.copy()
+        for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs):
+            self.types[arg.arg] = "unknown"
+            self.aliases.pop(arg.arg, None)
+            self.call_aliases.pop(arg.arg, None)
+        self.generic_visit(node)
+        self.types, self.aliases, self.call_aliases = saved
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Lambda(self, node):
+        # wait_until predicate lambdas are common; opaque lambda calls are
+        # classified by their unresolved call target/argument types.
+        self.generic_visit(node)
+
+    def visit_ClassDef(self, node):
+        self.record("API not fully verified: custom classes and dynamic method resolution", node, "warning")
+        self.generic_visit(node)
+
     def visit_Call(self, node):
+        if isinstance(node.func, ast.Name) and node.func.id in {"getattr", "setattr", "delattr", "hasattr", "vars", "globals", "locals", "eval", "exec", "__import__", "type"}:
+            self.record("API not fully verified: reflection or dynamic namespace access; executed simulation is not a full API check", node, "warning")
         name, owner = self.call_target(node.func)
         if name is None and owner is None and not (
                 isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
@@ -257,6 +307,8 @@ class LunaApiChecker(ast.NodeVisitor):
             signature = FUNCTIONS.get(name, CONSTRUCTORS.get(name))
             if name in OTHER_CLASSES:
                 self.record(f"Luna's {name} class has no public Python constructor", node)
+        if signature is None and owner is None and name not in {"print", "range", "abs", "min", "max", "round", "int", "float", "bool", "str", "len", "isinstance", "list", "tuple", "dict", "set", "enumerate", "zip", "hash", "getattr", "setattr", "vars", "type"}:
+            self.record("API not fully verified: unresolved named call; bindings may be dynamic", node, "warning")
         if signature is not None:
             self.check_signature(name, node, signature)
         if name in {"Valve", "Sensor"} and owner is None and node.args:
@@ -267,13 +319,24 @@ class LunaApiChecker(ast.NodeVisitor):
                     self.record(f"API not fully verified: {name} '{first.value}' is not in the Test Environment; construction is legal but device access needs a mapping", node, "warning")
         if name == "wait_until" and owner is None:
             timeout = node.args[1] if len(node.args) > 1 else next((k.value for k in node.keywords if k.arg == "timeout"), None)
-            if timeout is None or isinstance(timeout, ast.Constant) and timeout.value is None:
-                self.record("API not fully verified: upstream wait_until without timeout panicked in the extracted binding on this host (Instant + Duration::MAX); use an explicit finite timeout", node, "warning")
+            unpacked = any(isinstance(arg, ast.Starred) for arg in node.args) or any(k.arg is None for k in node.keywords)
+            if timeout is None and unpacked:
+                self.record("API not fully verified: unpacked timeout is checked only on executed paths", node, "warning")
+            elif timeout is None or isinstance(timeout, ast.Constant) and timeout.value is None:
+                self.record("Portability policy: wait_until requires an explicit finite nonnegative timeout; upstream omitted-timeout binding panics on the tested host", node)
+            elif timeout is not None:
+                value = self.constant_number(timeout)
+                if value is not None and (not math.isfinite(value) or value < 0 or value >= 2**64):
+                    self.record("Portability policy: wait_until timeout must be finite, nonnegative and representable as a Rust Duration", timeout)
+                elif value is None:
+                    self.record("API not fully verified: timeout finiteness is only checked on executed paths", timeout, "warning")
         if name == "create_abort_stage" and owner is None:
             self.check_abort_config(node)
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
+        if node.attr.startswith("_"):
+            self.record("API not fully verified: private or special attribute reflection", node, "warning")
         kind = self.type_of(node.value)
         owner = "Valve" if kind == "valve" else "Sensor" if kind.startswith("sensor:") else None
         if owner and not node.attr.startswith("__") and node.attr not in METHODS[owner]:
@@ -334,6 +397,7 @@ class LunaApiChecker(ast.NodeVisitor):
             kind = expected[param]
             actual = self.type_of(value)
             if actual == "unknown":
+                self.record("API not fully verified: argument type is unknown; simulation only checks executed paths", value, "warning")
                 continue
             if kind.startswith("Option<"):
                 if actual == "none":

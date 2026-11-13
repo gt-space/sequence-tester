@@ -144,14 +144,17 @@ def check_source(source, valves, sensors):
                 errors.append(diagnostic("names", "error", f"Undefined name '{node.id}'", node.lineno, node.col_offset + 1))
                 seen.add(node.id)
 
-    # Flight2 concatenates the prelude and source onto one line.
-    first = tree.body[0] if tree.body else None
-    if first and first.lineno == 1 and isinstance(first, (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-        errors.append(diagnostic("api", "warning", "API not fully verified: Luna Flight2 appends source to its prelude without a newline; a compound statement on line 1 fails there", 1))
+    # Validate the exact string Flight2 sends to Python, without rewriting it.
+    prelude = "from common import *;OPEN = ValveState.Open;CLOSED = ValveState.Closed;"
+    prelude += "".join(f"{name} = {cls}('{name}');" for cls, names in
+                       (("Valve", valves), ("Sensor", sensors)) for name in names)
+    try:
+        compile(prelude + source, "sequence.py", "exec")
+    except SyntaxError as error:
+        errors.append(diagnostic("api", "error", "Not portable through current Flight2 prelude: " + error.msg,
+                                 error.lineno or 0))
     if any(ord(char) > 127 for char in source):
-        errors.append(diagnostic("api", "warning", "API not fully verified: Luna GUI uses btoa(source), so non-ASCII source cannot reliably be saved as UTF-8; tester preserves Unicode"))
-    if any(isinstance(node, ast.ImportFrom) and node.module == "__future__" for node in ast.walk(tree)):
-        errors.append(diagnostic("api", "warning", "API not fully verified: Flight2's prepended statements prevent __future__ imports"))
+        errors.append(diagnostic("api", "error", "Not portable through current Luna GUI: btoa(source) does not preserve non-ASCII UTF-8 source"))
     errors.extend(analyze_luna_api(tree, valves, sensors))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -668,6 +671,11 @@ class Simulator:
             sim.advance(duration._raw)
 
         def wait_until(condition, timeout=None, poll_interval=None):
+            # Classification policy, not an alteration to Luna's optional signature.
+            # Opaque calls reach this guard even when static inference is incomplete.
+            if timeout is None or (isinstance(timeout, Quantity) and
+                    (not math.isfinite(timeout._raw) or timeout._raw < 0 or timeout._raw >= 2**64)):
+                raise ValueError("Portability policy: wait_until requires an explicit finite nonnegative timeout")
             if timeout is not None and (not isinstance(timeout, Quantity) or timeout._kind != "s"):
                 raise TypeError("wait_until timeout must be a Duration")
             if poll_interval is not None and (not isinstance(poll_interval, Quantity) or poll_interval._kind != "s"):

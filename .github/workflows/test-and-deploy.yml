@@ -32,6 +32,20 @@ jobs:
         run: |
           python scripts/check_luna_contract.py /tmp/luna-api
           python scripts/generate_luna_contract.py /tmp/luna-api
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install namespace test dependency
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+      - name: Actual production binding in private namespaces
+        run: python3 scripts/test_production_binding.py /tmp/luna-api /tmp/luna-production-evidence
+      - name: Independent upstream drift mutation regressions
+        run: python3 scripts/audit_luna_drift.py /tmp/luna-api
+      - name: Preserve compiled production binding evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-binding-evidence
+          path: /tmp/luna-production-evidence/
+          if-no-files-found: warn
       - name: Python regression tests
         run: python -m unittest discover -s tests -v
       - name: JavaScript syntax

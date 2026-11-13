@@ -39,9 +39,10 @@ test('audit: status failures and exact UTF-8 source round trip', {timeout:100000
   const download=await downloadPromise;
   assert.equal(readFileSync(await download.path(),'utf8'),source);
   await page.locator('#simulate').click();
-  await page.waitForFunction(()=>document.querySelector('[data-check="runtime"]').dataset.state==='pass');
+  await page.waitForFunction(()=>document.querySelector('[data-check="api"]').dataset.state==='fail');
+  assert.equal(await page.locator('[data-check="runtime"]').getAttribute('data-state'),'not_run');
   assert.match(await page.locator('#diagnostics').textContent(),/btoa/);
-  assert.equal(await page.locator('[data-check="api"]').getAttribute('data-state'),'partial');
+  assert.equal(await page.locator('[data-check="api"]').getAttribute('data-state'),'fail');
   assert.ok((await page.locator('#highlight').textContent()).includes('héllo'));
   mkdirSync('reports/browser',{recursive:true});
   await page.screenshot({path:'reports/browser/audit-unicode-warning.png',fullPage:true});

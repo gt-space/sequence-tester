@@ -25,11 +25,14 @@ jobs:
           python-version: '3.12'
       - name: Fetch Luna main (read only)
         run: git clone --depth=1 --branch=main https://github.com/gt-space/luna.git /tmp/luna-api
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install namespace test dependency
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
       - name: Detect API drift without hiding failure
         id: drift
         shell: bash
         run: |
-          if python scripts/check_luna_contract.py /tmp/luna-api > /tmp/luna-drift.txt 2>&1 && python scripts/generate_luna_contract.py /tmp/luna-api >> /tmp/luna-drift.txt 2>&1 && python -m unittest discover -s tests >> /tmp/luna-drift.txt 2>&1; then
+          if python scripts/check_luna_contract.py /tmp/luna-api > /tmp/luna-drift.txt 2>&1 && python scripts/generate_luna_contract.py /tmp/luna-api >> /tmp/luna-drift.txt 2>&1 && python -m unittest discover -s tests >> /tmp/luna-drift.txt 2>&1 && python3 scripts/audit_luna_drift.py /tmp/luna-api >> /tmp/luna-drift.txt 2>&1 && python3 scripts/test_production_binding.py /tmp/luna-api /tmp/luna-production-evidence >> /tmp/luna-drift.txt 2>&1; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -41,21 +44,19 @@ jobs:
           upstream=$(git -C /tmp/luna-api rev-parse HEAD)
           if [ "${{ steps.drift.outputs.changed }}" = "true" ]; then compatible=false; else compatible=true; fi
           python scripts/write_luna_status.py --mode live --luna-sha "$upstream" --tester-sha "$GITHUB_SHA" --compatible "$compatible" --error-file /tmp/luna-drift.txt --output /tmp/luna-compatibility.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan publish-luna-status
-          git rm -rf . >/dev/null
-          cp /tmp/luna-compatibility.json status.json
-          git add status.json
-          git commit -m "Refresh Luna API compatibility status"
-          git push --force origin HEAD:refs/heads/compatibility-status
+          status_remote=$(git remote get-url origin)
+          python3 scripts/publish_luna_status.py --remote "$status_remote" --status /tmp/luna-compatibility.json
       - name: Open a reviewable API sync PR if Luna changed
         if: steps.drift.outputs.changed == 'true'
         shell: bash
         run: |
+          cp scripts/luna_bot.py /tmp/luna_bot.py
+          python scripts/generate_luna_contract.py /tmp/luna-api --output /tmp/luna_contract.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
           git checkout -B automation/luna-api-drift origin/main
-          python scripts/generate_luna_contract.py /tmp/luna-api --write
+          cp /tmp/luna_contract.py src/luna_contract.py
           git add src/luna_contract.py
           if git diff --cached --quiet; then
             echo "Luna drift is not representable by an API-surface change; manual inspection required." >> "$GITHUB_STEP_SUMMARY"
@@ -63,13 +64,7 @@ jobs:
           fi
           git commit -m "Regenerate Luna Python API contract for review"
           git push --force origin HEAD:refs/heads/automation/luna-api-drift
-          if [ "$(gh pr list --head automation/luna-api-drift --base main --state open --json number --jq 'length')" -eq 0 ]; then
-            gh pr create --draft --base main --head automation/luna-api-drift \
-              --title "chore: review upstream Luna API drift" \
-              --body "Auto-generated downstream contract update from Luna main. **DO NOT MERGE** until simulated behavior and regression coverage are updated and CI passes. Luna is read-only. Review the latest Monitor Luna API compatibility action for the upstream SHA and drift reason."
-          elif [ "$(gh pr view automation/luna-api-drift --json isDraft --jq '.isDraft')" != "true" ]; then
-            gh pr ready automation/luna-api-drift --undo
-          fi
+          python3 /tmp/luna_bot.py
       - name: Fail the monitor when drift or regressions were detected
         if: steps.drift.outputs.changed == 'true'
         run: exit 1

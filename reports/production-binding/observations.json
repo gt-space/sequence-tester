@@ -1,0 +1,2224 @@
+{
+  "isolation": {
+    "namespaces": {
+      "mnt": "mnt:[4026532266]",
+      "ipc": "ipc:[4026532268]",
+      "net": "net:[4026532271]",
+      "pid": "pid:[4026532269]"
+    },
+    "host_namespaces": {
+      "mnt": "mnt:[4026532257]",
+      "ipc": "ipc:[4026532246]",
+      "net": "net:[4026531840]",
+      "pid": "pid:[4026532259]"
+    },
+    "private_tmp_shm": true,
+    "host_sentinel_inaccessible": true
+  },
+  "comparisons": 360,
+  "errors": {
+    "common.Sensor(\"missing\").read()": "SensorNotFoundError",
+    "common.Valve(\"missing\").is_open()": "ValveNotFoundError",
+    "common.Sensor(\"FTPT\").read(1)": "TypeError",
+    "common.Sensor(\"FTPT\").open()": "AttributeError",
+    "common.wait_for(500)": "TypeError",
+    "common.wait_for()": "TypeError",
+    "common.Valve(\"valve\").open(True)": "TypeError",
+    "common.Valve(\"valve\").actuate(\"OPEN\")": "TypeError"
+  },
+  "commands": [
+    {
+      "ActuateValve": {
+        "valve": "valve",
+        "state": "open"
+      }
+    },
+    {
+      "ActuateValve": {
+        "valve": "valve",
+        "state": "closed"
+      }
+    },
+    {
+      "CreateAbortStage": {
+        "stage_name": "synthetic",
+        "abort_condition": "False",
+        "valve_safe_states": {
+          "valve": {
+            "desired_state": "closed",
+            "safing_timer": 500
+          }
+        }
+      }
+    },
+    {
+      "SetAbortStage": {
+        "stage_name": "synthetic"
+      }
+    }
+  ],
+  "library": "unmodified common, production read/deserialization/IPC paths",
+  "observations": [
+    [
+      "psi",
+      0,
+      "sensor < threshold",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "threshold < sensor",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "sensor.read() < threshold",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "threshold < sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "sensor <= threshold",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "threshold <= sensor",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "sensor.read() <= threshold",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "threshold <= sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "sensor > threshold",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "threshold > sensor",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "sensor.read() > threshold",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "threshold > sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "sensor >= threshold",
+      true
+    ],
+    [
+      "psi",
+      0,
+      "threshold >= sensor",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "sensor.read() >= threshold",
+      false
+    ],
+    [
+      "psi",
+      0,
+      "threshold >= sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "sensor < threshold",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "threshold < sensor",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "sensor.read() < threshold",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "threshold < sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "sensor <= threshold",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "threshold <= sensor",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "sensor.read() <= threshold",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "threshold <= sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "sensor > threshold",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "threshold > sensor",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "sensor.read() > threshold",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "threshold > sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "sensor >= threshold",
+      true
+    ],
+    [
+      "psi",
+      299,
+      "threshold >= sensor",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "sensor.read() >= threshold",
+      false
+    ],
+    [
+      "psi",
+      299,
+      "threshold >= sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "sensor < threshold",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "threshold < sensor",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "sensor.read() < threshold",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "threshold < sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "sensor <= threshold",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "threshold <= sensor",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "sensor.read() <= threshold",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "threshold <= sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "sensor == threshold",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "threshold == sensor",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "sensor.read() == threshold",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "threshold == sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "sensor != threshold",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "threshold != sensor",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "sensor.read() != threshold",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "threshold != sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "sensor > threshold",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "threshold > sensor",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "sensor.read() > threshold",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "threshold > sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      300,
+      "sensor >= threshold",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "threshold >= sensor",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "sensor.read() >= threshold",
+      true
+    ],
+    [
+      "psi",
+      300,
+      "threshold >= sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "sensor < threshold",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "threshold < sensor",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "sensor.read() < threshold",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "threshold < sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "sensor <= threshold",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "threshold <= sensor",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "sensor.read() <= threshold",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "threshold <= sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "sensor > threshold",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "threshold > sensor",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "sensor.read() > threshold",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "threshold > sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "sensor >= threshold",
+      false
+    ],
+    [
+      "psi",
+      301,
+      "threshold >= sensor",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "sensor.read() >= threshold",
+      true
+    ],
+    [
+      "psi",
+      301,
+      "threshold >= sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "sensor < threshold",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "threshold < sensor",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "sensor.read() < threshold",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "threshold < sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "sensor <= threshold",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "threshold <= sensor",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "sensor.read() <= threshold",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "threshold <= sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "sensor > threshold",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "threshold > sensor",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "sensor.read() > threshold",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "threshold > sensor.read()",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "sensor >= threshold",
+      false
+    ],
+    [
+      "psi",
+      400,
+      "threshold >= sensor",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "sensor.read() >= threshold",
+      true
+    ],
+    [
+      "psi",
+      400,
+      "threshold >= sensor.read()",
+      false
+    ],
+    [
+      "unknown",
+      0,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "unknown",
+      0,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "unknown",
+      0,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "unknown",
+      0,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "unknown",
+      0,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "unknown",
+      0,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "unknown",
+      0,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "unknown",
+      0,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "unknown",
+      0,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      0,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "unknown",
+      299,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "unknown",
+      299,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "unknown",
+      299,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "unknown",
+      299,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "unknown",
+      299,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "unknown",
+      299,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "unknown",
+      299,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "unknown",
+      299,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      299,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "unknown",
+      300,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "unknown",
+      300,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "unknown",
+      300,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "unknown",
+      300,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "unknown",
+      300,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "unknown",
+      300,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "unknown",
+      300,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "unknown",
+      300,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      300,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "unknown",
+      301,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "unknown",
+      301,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "unknown",
+      301,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "unknown",
+      301,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "unknown",
+      301,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "unknown",
+      301,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "unknown",
+      301,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "unknown",
+      301,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      301,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "unknown",
+      400,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "unknown",
+      400,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "unknown",
+      400,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "unknown",
+      400,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "unknown",
+      400,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "unknown",
+      400,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "unknown",
+      400,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "unknown",
+      400,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "unknown",
+      400,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "V",
+      0,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "V",
+      0,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "V",
+      0,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "V",
+      0,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "V",
+      0,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "V",
+      0,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "V",
+      0,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "V",
+      0,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      0,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "V",
+      299,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "V",
+      299,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "V",
+      299,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "V",
+      299,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "V",
+      299,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "V",
+      299,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "V",
+      299,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "V",
+      299,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      299,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "V",
+      300,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "V",
+      300,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "V",
+      300,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "V",
+      300,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "V",
+      300,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "V",
+      300,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "V",
+      300,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "V",
+      300,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      300,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "V",
+      301,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "V",
+      301,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "V",
+      301,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "V",
+      301,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "V",
+      301,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "V",
+      301,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "V",
+      301,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "V",
+      301,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      301,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "sensor < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "threshold < sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "sensor.read() < threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "threshold < sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "sensor <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "threshold <= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "sensor.read() <= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "threshold <= sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "sensor == threshold",
+      false
+    ],
+    [
+      "V",
+      400,
+      "threshold == sensor",
+      false
+    ],
+    [
+      "V",
+      400,
+      "sensor.read() == threshold",
+      false
+    ],
+    [
+      "V",
+      400,
+      "threshold == sensor.read()",
+      false
+    ],
+    [
+      "V",
+      400,
+      "sensor != threshold",
+      true
+    ],
+    [
+      "V",
+      400,
+      "threshold != sensor",
+      true
+    ],
+    [
+      "V",
+      400,
+      "sensor.read() != threshold",
+      true
+    ],
+    [
+      "V",
+      400,
+      "threshold != sensor.read()",
+      true
+    ],
+    [
+      "V",
+      400,
+      "sensor > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "threshold > sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "sensor.read() > threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "threshold > sensor.read()",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "sensor >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "threshold >= sensor",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "sensor.read() >= threshold",
+      "TypeError"
+    ],
+    [
+      "V",
+      400,
+      "threshold >= sensor.read()",
+      "TypeError"
+    ]
+  ],
+  "common_source_unchanged": true
+}

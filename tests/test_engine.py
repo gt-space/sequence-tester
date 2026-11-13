@@ -99,9 +99,9 @@ class EngineTests(unittest.TestCase):
         self.assertEqual([event["line"] for event in result["events"]], [2, 4])
 
     def test_event_source_location_in_loop(self):
-        result = self.check("for i in range(2):\n    press_valve.open()\n    wait_for(1*s)\n    press_valve.close()", True)
+        result = self.check("# source lines\nfor i in range(2):\n    press_valve.open()\n    wait_for(1*s)\n    press_valve.close()", True)
         self.assertEqual(result["checks"]["runtime"], "pass")
-        self.assertEqual([event["line"] for event in result["events"]], [2, 4, 2, 4])
+        self.assertEqual([event["line"] for event in result["events"]], [3, 5, 3, 5])
 
     def test_repeated_valve_commands_do_not_truncate_later_transitions(self):
         source = ("press_valve.open()\n"
@@ -118,7 +118,7 @@ class EngineTests(unittest.TestCase):
                             for item in result["diagnostics"]))
 
     def test_more_than_300_real_transitions_are_preserved(self):
-        source = ("for i in range(350):\n"
+        source = ("# transition regression\nfor i in range(350):\n"
                   "    press_valve.actuate(i % 2 == 0)\n"
                   "    wait_for(1*ms)")
         result = self.check(source, True)
@@ -128,7 +128,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["valves"]["press_valve"], "CLOSED")
 
     def test_excessive_distinct_events_fail_instead_of_silently_truncating(self):
-        source = ("for i in range(10001):\n"
+        source = ("# event limit\nfor i in range(10001):\n"
                   "    press_valve.actuate(i % 2 == 0)")
         result = self.check(source, True)
         self.assertEqual(result["checks"]["runtime"], "fail")
@@ -215,7 +215,7 @@ class EngineTests(unittest.TestCase):
         result = self.check("opening = 'CLOSED'\npress_valve.actuate(opening)", True)
         # Static inference catches simple aliasing; opaque dynamic values are rejected at runtime.
         self.assertEqual(result["checks"]["api"], "fail")
-        result = self.check("def opening(): return 'CLOSED'\npress_valve.actuate(opening())", True)
+        result = self.check("# opaque call regression\ndef opening(): return 'CLOSED'\npress_valve.actuate(opening())", True)
         self.assertEqual(result["checks"]["runtime"], "fail")
 
     def test_integrity_checks_valve_event_accounting(self):
@@ -237,7 +237,7 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(any("timestamps" in problem for problem in simulation_integrity_errors(sim, result)))
 
     def test_interval(self):
-        result = self.check("for i in interval(3, 2*s):\n    print(i)", True)
+        result = self.check("# interval regression\nfor i in interval(3, 2*s):\n    print(i)", True)
         self.assertEqual(result["virtual_time"], 4)
         self.assertEqual(result["stdout"], "0\n1\n2\n")
 

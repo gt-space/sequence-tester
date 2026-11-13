@@ -40,7 +40,7 @@ class AuditRegressions(unittest.TestCase):
     def test_flight_first_line_and_unicode_limitations_are_visible(self):
         for source in ['if True:\n    valve.open()', '# café\nvalve.open()']:
             r=run_sequence(source,MAPPING,False)
-            self.assertTrue(any(d['stage']=='api' and d['severity']=='warning' for d in r['diagnostics']),r)
+            self.assertTrue(any(d['stage']=='api' and d['severity']=='error' for d in r['diagnostics']),r)
 
     def test_quantity_ieee_and_numeric_conversion(self):
         r=run_sequence('assert Pressure(True) == 1*psi\nassert (1*psi / 0) > 300*psi\nassert Pressure(-0.0) < Pressure(0.0)',MAPPING,True)
@@ -63,13 +63,13 @@ class AdditionalAuditRegressions(unittest.TestCase):
         self.assertEqual(r['checks']['runtime'],'pass',r['diagnostics'])
 
     def test_unreachable_invalid_call_is_partial(self):
-        r=run_sequence('if False:\n    valve.open(True)',MAPPING,True)
+        r=run_sequence('# unreachable branch fixture\nif False:\n    valve.open(True)',MAPPING,True)
         self.assertEqual(r['checks']['api'],'partial',r['diagnostics'])
         self.assertEqual(r['checks']['runtime'],'pass',r['diagnostics'])
 
     def test_omitted_timeout_exposes_upstream_panic_limit(self):
         r=run_sequence('wait_until(lambda: True)',MAPPING,True)
-        self.assertEqual(r['checks']['api'],'partial',r['diagnostics'])
+        self.assertEqual(r['checks']['api'],'fail',r['diagnostics'])
 
 class CompiledEnumAndIdentity(unittest.TestCase):
     def test_valve_identity_and_enum_values(self):

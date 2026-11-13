@@ -132,11 +132,12 @@ def render(contract):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("luna", type=Path)
+    parser.add_argument("--output", type=Path, help="Write a generated candidate outside the working tree")
     parser.add_argument("--write", action="store_true", help="Regenerate src/luna_contract.py")
     args = parser.parse_args()
     contract = extract(args.luna)
-    target = ROOT / "src" / "luna_contract.py"
-    if args.write:
+    target = args.output or ROOT / "src" / "luna_contract.py"
+    if args.write or args.output:
         target.write_text(render(contract))
         print(f"Updated {target}")
     else:

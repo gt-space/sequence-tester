@@ -60,6 +60,7 @@ OTHER_CLASSES = {"ValveState", "ValveSafeState", "IntervalIterator"}
 OTHER_EXPORTS = {"__layout_fingerprint__"}
 PRELUDE = {"OPEN", "CLOSED"}  # Injected by flight2/src/sequence.rs.
 VALVE_STATES = {"Undetermined", "Disconnected", "Open", "Closed", "Fault"}
+SENSOR_COMPARISON_ORDER = "reversed"  # From Luna Sensor.__richcmp__; compare threshold to reading.
 
 COMMON_EXPORTS = (set(FUNCTIONS) | set(CONSTRUCTORS) | set(UNIT_CONSTANTS) |
                   OTHER_CLASSES | OTHER_EXPORTS)

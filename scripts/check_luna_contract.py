@@ -96,10 +96,12 @@ def check(repo):
     found_states = set(re.findall(r"^\s{4}(\w+),\s*$", states.group(1), re.MULTILINE))
     assert found_states == VALVE_STATES, f"Luna valve states drifted: {found_states}"
     # Detect changes to comparison semantics despite an unchanged PyO3 signature.
-    comparison = re.search(r"fn __richcmp__\\s*\\(.*?\\)\\s*->\\s*PyResult<bool>\\s*\\{(.*?)^    \\}",
-                           device, re.MULTILINE | re.DOTALL)
-    assert comparison, "Missing Sensor.__richcmp__; update the tester's behavior model"
-    richcmp = comparison.group(1)
+    sensor_block = re.search(r"#\[pymethods\]\s*impl\s+Sensor\s*\{(.*?)^\}",
+                             device, re.MULTILINE | re.DOTALL)
+    assert sensor_block and "fn __richcmp__" in sensor_block.group(1), (
+        "Missing Sensor.__richcmp__; update the tester's behavior model"
+    )
+    richcmp = sensor_block.group(1)
     actual_order = ("reversed" if "other.rich_compare(self.read()?, op)?" in richcmp else
                     "normal" if "self.read()?.rich_compare(other, op)?" in richcmp else "unknown")
     assert actual_order == SENSOR_COMPARISON_ORDER, (

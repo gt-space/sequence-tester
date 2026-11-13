@@ -45,3 +45,19 @@ class DynamicBindings(unittest.TestCase):
         result=run_sequence('wait_until(**{"condition": lambda: True, "timeout": 1*s})',ENV,True)
         self.assertEqual(result['checks']['api'],'partial',result)
         self.assertEqual(result['checks']['runtime'],'pass',result)
+
+class SimulationLimits(unittest.TestCase):
+    def test_valid_but_unmodeled_import_and_exception_paths_are_partial(self):
+        for source in ['import json\nprint(json.dumps({}))', '# exceptions\ntry:\n    valve.open()\nexcept Exception:\n    pass']:
+            result=run_sequence(source,ENV,False)
+            self.assertEqual(result['checks']['api'],'partial',result)
+
+class FunctionScope(unittest.TestCase):
+    def test_local_parameter_can_shadow_api(self):
+        result=run_sequence('# local callback\ndef f(wait_for):\n    wait_for()\nf(lambda: None)',ENV,True)
+        self.assertEqual(result['checks']['api'],'partial',result)
+        self.assertEqual(result['checks']['runtime'],'pass',result)
+    def test_unexecuted_function_failure_is_partial(self):
+        result=run_sequence('# unused helper\ndef unused():\n    valve.open(True)',ENV,True)
+        self.assertEqual(result['checks']['api'],'partial',result)
+        self.assertEqual(result['checks']['runtime'],'pass',result)

@@ -160,9 +160,9 @@ def check_source(source, valves, sensors):
         if isinstance(node, ast.Import):
             for item in node.names:
                 if item.name.split(".")[0] not in IMPORTS:
-                    errors.append(diagnostic("runtime", "warning", f"Import '{item.name}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
+                    errors.append(diagnostic("api", "warning", f"API not fully verified: import '{item.name}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
         if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] not in IMPORTS:
-            errors.append(diagnostic("runtime", "warning", f"Import '{node.module}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
+            errors.append(diagnostic("api", "warning", f"API not fully verified: import '{node.module}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
     return tree, errors
 
 

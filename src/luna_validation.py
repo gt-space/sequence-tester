@@ -265,13 +265,22 @@ class LunaApiChecker(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
         self.record("API not fully verified: function scope, argument bindings and unexecuted paths require review", node, "warning")
         # Do not infer a function local using a same-named outer device.
-        saved = self.types.copy(), self.aliases.copy(), self.call_aliases.copy()
-        for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs):
+        saved = self.types.copy(), self.aliases.copy(), self.call_aliases.copy(), self.shadowed.copy(), self.common_modules.copy()
+        start = len(self.errors)
+        parameters = [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+        parameters += [arg for arg in (node.args.vararg, node.args.kwarg) if arg]
+        for arg in parameters:
             self.types[arg.arg] = "unknown"
+            self.shadowed.add(arg.arg)
+            self.common_modules.discard(arg.arg)
             self.aliases.pop(arg.arg, None)
             self.call_aliases.pop(arg.arg, None)
         self.generic_visit(node)
-        self.types, self.aliases, self.call_aliases = saved
+        for problem in self.errors[start:]:
+            if problem["severity"] == "error":
+                problem["severity"] = "warning"
+                problem["message"] = "API not fully verified: function body is checked only when executed: " + problem["message"]
+        self.types, self.aliases, self.call_aliases, self.shadowed, self.common_modules = saved
 
     visit_AsyncFunctionDef = visit_FunctionDef
 
@@ -279,6 +288,12 @@ class LunaApiChecker(ast.NodeVisitor):
         # wait_until predicate lambdas are common; opaque lambda calls are
         # classified by their unresolved call target/argument types.
         self.generic_visit(node)
+
+    def visit_Try(self, node):
+        self.record("API not fully verified: exception-dependent paths and production error behavior require review", node, "warning")
+        self.generic_visit(node)
+
+    visit_TryStar = visit_Try
 
     def visit_ClassDef(self, node):
         self.record("API not fully verified: custom classes and dynamic method resolution", node, "warning")

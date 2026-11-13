@@ -63,6 +63,71 @@ const FEEDBACK_MAPPING = {
 EXAMPLE_MAPPINGS.feedback = FEEDBACK_MAPPING;
 
 const $ = id => document.getElementById(id);
+
+const COMPATIBILITY_STATUS_URL =
+  "https://raw.githubusercontent.com/gt-space/sequence-tester/compatibility-status/status.json";
+
+function showLunaCompatibility(state, label, detail) {
+  const banner = $("luna-compatibility");
+  if (!banner) return;
+  banner.dataset.state = state;
+  $("compatibility-label").textContent = label;
+  $("compatibility-detail").textContent = detail;
+}
+
+async function checkLunaCompatibility() {
+  let baseline;
+  try {
+    const response = await fetch("./compatibility-build.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("Missing deployed build metadata");
+    baseline = await response.json();
+    if (baseline.schema_version !== 1 || baseline.mode !== "build" ||
+        !baseline.luna_sha || !baseline.tester_sha) {
+      throw new Error("Invalid deployed build metadata");
+    }
+  } catch {
+    showLunaCompatibility("warning", "LUNA API STATUS UNKNOWN",
+                          "No validated Luna revision metadata is available for this local build.");
+    return;
+  }
+
+  const buildSha = baseline.luna_sha.slice(0, 8);
+  try {
+    const cacheKey = Math.floor(Date.now() / 3600000);
+    const response = await fetch(COMPATIBILITY_STATUS_URL + "?v=" + cacheKey, { cache: "no-store" });
+    if (!response.ok) throw new Error("Upstream compatibility status unavailable");
+    const latest = await response.json();
+    if (latest.schema_version !== 1 || latest.mode !== "live" ||
+        !latest.luna_sha || !latest.checked_at || typeof latest.compatible !== "boolean") {
+      throw new Error("Invalid live compatibility status");
+    }
+    const checked = Date.parse(latest.checked_at);
+    if (!Number.isFinite(checked) || Date.now() - checked > 48 * 3600 * 1000 ||
+        checked > Date.now() + 5 * 60 * 1000) {
+      showLunaCompatibility("warning", "LUNA API CHECK STALE",
+                            "Deployed against Luna " + buildSha + "; latest check is not recent.");
+    } else if (latest.tester_sha !== baseline.tester_sha) {
+      showLunaCompatibility("warning", "LUNA API CHECK UNVERIFIED",
+                            "Deployed against Luna " + buildSha +
+                            "; compatibility check belongs to a different tester revision.");
+    } else if (!latest.compatible) {
+      showLunaCompatibility("warning", "LUNA API DRIFT DETECTED",
+                            "Deployed against Luna " + buildSha +
+                            "; upstream " + latest.luna_sha.slice(0, 8) +
+                            " differs from the tested API. Do not rely on API compatibility.");
+    } else {
+      showLunaCompatibility("verified", "LUNA API CONTRACT VERIFIED",
+                            "Luna " + latest.luna_sha.slice(0, 8) +
+                            " · tester " + baseline.tester_sha.slice(0, 8) +
+                            " · Python API surface checked; simulation is not hardware verification.");
+    }
+  } catch {
+    showLunaCompatibility("warning", "LUNA API STATUS UNAVAILABLE",
+                          "Deployed against Luna " + buildSha +
+                          "; cannot confirm the current upstream API status.");
+  }
+}
+checkLunaCompatibility();
 const source = $("source");
 const sequenceName = $("sequence-name");
 function setSequenceName(value) {

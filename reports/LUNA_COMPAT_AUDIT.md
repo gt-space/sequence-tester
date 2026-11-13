@@ -1,36 +1,180 @@
-# Independent Luna compatibility audit
+# Independent Luna Python compatibility audit
 
-Status: IN PROGRESS; no certification or physical-system safety claim.
+**Verdict: NOT READY for an unrestricted exact-script / full Python API compatibility claim.** The tested comparison behavior and common operator calls have materially improved. Selected ASCII scripts with matching external mappings pass. This is neither full production-binding certification nor a physical-system safety assessment.
 
-## Authority and constraints
+## Revisions and provenance
 
-- Initial tester HEAD and fetched feature ref: `35eb351263c187689dae60a7f2b0f9fa4704291a`.
-- Fetched Luna `origin/main`: `cf33309b2cf02e78fff18668dfca2f74ec77bd5f` (local main is behind; not used).
-- Both working trees initially clean. Only remote refs fetched in Luna; source unchanged.
-- Disposable upstream archive: `/tmp/luna-audit-upstream`, made with `git archive origin/main`.
-- No production requests, FC IPC, live processes, hardware, other repositories, merge or main edits authorized or attempted.
-- PR: https://github.com/gt-space/sequence-tester/pull/4 . `gh` absent locally.
+| Item | Exact revision |
+| --- | --- |
+| Initial tester / initial PR head | `35eb351263c187689dae60a7f2b0f9fa4704291a` |
+| Tester origin/main, unchanged | `d0465ce77019a8cbcb5c267fbd90d72ea09dccb8` |
+| Luna origin/main authority | `cf33309b2cf02e78fff18668dfca2f74ec77bd5f` |
+| Published implementation audited here | `cdb29e29829290dd63e3038be803b4177847989f` |
+| Audited implementation tree | `9e964d7e77d6531380a7210ef80c2236a40b3dc4` |
 
-## Evidence log
+Report-only follow-up commits do not change the implementation identified above. PR: https://github.com/gt-space/sequence-tester/pull/4 . Branch: `feat/luna-api-compatibility`.
 
-- `git fetch origin` in both repositories; `git status --short --branch`; `git rev-parse` authority refs.
-- `git diff origin/main...HEAD --stat` reviewed tester change scope.
-- Read upstream Sensor read/richcmp and entire quantity macro and Measurement conversion.
-- Existing contract checker only identifies operand order text; compiled Python reflected behavior requires independent evidence.
-- Both supplied Notion pages accessible through connected Notion fetch; archived temporarily for extraction. Vespula page last edited 2026-09-30. Historical launch V1 contains syntax error and lower-case boolean names; do not repair before testing.
-- `python` and `gh` commands unavailable; use `python3` and connected GitHub/read-only HTTP as needed.
+Both remotes were fetched at the start and again before publication. Luna's local main was behind; it was never used as authority. Both working trees started clean. Luna was only inspected with read-only Git operations and its remote refs fetched. Its source/branch/HEAD were not changed. The disposable archive `/tmp/luna-audit-upstream` came from `git archive origin/main`. No mcfs-bench, services, live processes, hardware, GPIO, pyro, production requests, or Yorg integration were used. Tester main and PR merge state were not changed.
 
-## Outstanding work
+Git CLI publication failed for missing HTTPS credentials and SSH authentication. Connected GitHub blob/tree/commit/ref tools published the reviewed tree with an expected-head lease and no force update. The returned remote tree SHA matched the local tested tree exactly. Local audit checkpoint commits were `743d46f752ad63b8ccfd637b823cedbe6cab5b7d` and `fdbf9f07058e1a276865defa023f24bf5718d70b`; the local tester branch was then aligned to the identical published tree. No user work was discarded.
 
-Compiled isolated binding harness, full parity matrix, production path review, scripts/CI mutations, source portability, regressions, browser checks, fixes and push remain in progress.
+## Phase A: production source path
 
-## Recovery checkpoint: independently established results
+Reviewed upstream `gui/src/system/SystemPages.tsx`, `gui/src/comm.tsx`, `gui/src/sequences/Sequences.tsx`, `servo/src/server/routes/sequence.rs`, `servo/src/server/flight.rs`, `flight2/src/sequence.rs`, and `common/src/sequence/{mod,func,device,unit}.rs` from the archive.
 
-- Built extracted Rust/PyO3 0.21.2 harness in `/tmp/luna-binding-audit`. Exact upstream `unit.rs` (including Measurement IntoPy), Sensor `__richcmp__`, wait_for/wait_until, and interval are compiled; sensor read supplies synthetic values. NOT a build of the complete production common module; FC synchronization/deserialization/error propagation and IPC are not exercised.
-- Matrix before/after saved in binding-comparisons-{before,after}.json. 360 comparisons across 0/299/300/301/400, psi/unknown/V, six operators, sensor/threshold on either side and explicit read on either side. 22 real mismatches before, zero after in these 360 cases. Additional 120 synthetic missing-sensor rows do NOT test production errors and are excluded from parity claims.
-- `FTPT.read() > 300*psi` matches normal quantity ordering for all five values. Direct Sensor comparisons reverse ordering; Python reflected comparisons also reach Sensor when quantity returns NotImplemented.
-- Compiled timing code: wait_for(Duration(0)) works; wait_for(500), wait_for() raise TypeError. wait_until(lambda: True, Duration(0)) works. Omitted timeout panics on this host (`Instant + Duration::MAX` overflow); tester now warns and marks partial. Original source unchanged.
-- Added regression cases before fixes: initial seven cases yielded 10 failing subcases and 4 errors. Fixes cover reflected comparisons, runtime keyword names, dynamic unpacking partial status, unknown float readings, incompatible-unit equality, numeric string conversion, source portability warnings, constructors without access, quantity mutation, unreachable invalid branches, and optional-timeout limitation.
-- Initial Python: 71/71; initial JS: 28/28. Current checkpoint: Python 85/85; JS 29/29; all src JS syntax checks pass. Browser existing regression passed (1/1) before latest changes; must rerun after final changes.
-- Browser dependencies installed only in `/tmp/sequence-browser`; missing libnspr4/libnss3 downloaded/extracted under `/tmp/luna-browser-libs`, no system package install. Use LD_LIBRARY_PATH for browser.
-- Source fingerprint added to generated manifest because signature-only checks miss scale/body changes. Fingerprints conservatively require review even for nonsemantic changes.
+1. The GUI submits `btoa(currentSequnceText())` through `sendSequence` to Servo's sequence-save route.
+2. Servo decodes Base64, requires UTF-8, and stores the Python text. The run route retrieves that stored string by name and forwards a `Sequence` to Flight2. Its configuration-ID check is still a TODO; the selected tester environment cannot prove correspondence to the running vehicle.
+3. Flight2 constructs `from common import *;OPEN = ValveState.Open;CLOSED = ValveState.Closed;`, followed by Valve/Sensor assignments from current mappings, followed immediately by `sequence.script`, then invokes `python3 -c` with the common-module PYTHONPATH.
+4. `common` registers the PyO3 exports, unit classes/constants, device methods, enum and iterator types. The IPC synchronizer/socket paths were inspected as text, never opened by this audit.
+
+The tester compiles the original AST with filename `sequence.py`; it does not inject tester-only imports, wrappers, helper calls, waits, or transform operator source. Its execution namespace supplies simulated prelude names. Source files and environment files remain separate.
+
+**Upstream portability defects:** Flight2 has no newline between its prelude and the source. A first-line compound statement (`if`, `for`, `while`, `def`, etc.) is invalid after semicolon-separated statements; a leading comment/newline avoids that parser problem. Prepended statements also prevent `__future__` imports. The GUI's direct `btoa` is not UTF-8 encoding: ordinary non-ASCII Latin characters produce bytes Servo rejects as UTF-8, and characters outside Latin-1 cause `InvalidCharacterError` in the GUI. The tester now exposes warnings/partial verification without altering the user's source. Tested ASCII source lines keep their line numbers because the prelude adds no newline; no live server/editor integration was run.
+
+## Phase B: independent compiled evidence
+
+Reproducible harness source is generated by `scripts/build_luna_audit_harness.py`. It compiles **actual extracted Rust/PyO3 0.21.2 binding code**, pinned to Luna's Cargo.lock version, with abi3-py38/extension-module/gil-refs. Host: Python 3.12.3, Rust 1.99.1, Node 22.19.0, Linux.
+
+Copied unchanged into the compiled crate:
+
+- Entire upstream unit.rs, including all six quantity types, numeric operations, rich comparison, and Measurement IntoPy conversion.
+- Sensor.__richcmp__ exactly as implemented upstream.
+- wait_for, wait_until, IntervalIterator and interval code, including PyO3 annotations/default inference.
+- Valve declaration/constructors and Python method signatures; enum body.
+
+**Substitutions:** Measurement container/Unit enum are minimal synthetic definitions. Sensor.read selects controlled values and uses the real Measurement conversion, bypassing shared memory/rkyv/synchronization. Sensor's harness constructor takes synthetic value/kind, so it is not evidence for the production Sensor constructor signature. Valve state-read and actuation bodies are explicitly stubbed (`Ok(false)` / `Ok(())`). No command can reach a real socket or mmap. This is **not the full production common binding**, nor a compiled test of production Sensor.read's IPC/deserialization and error branches. Those behavioral equivalences remain unverified.
+
+### Comparison matrix
+
+Machine-readable evidence: `binding-comparisons-before.json`, `binding-comparisons-after.json`. For each of 0, 299, 300, 301, 400, tested six operators `< <= == != > >=`, sensor on left, threshold on left, explicit read on left, explicit read on right. Repeated for psi, unknown-unit floats, and incompatible V readings against 300 psi: **360 real comparison observations**. The additional 120 `missing` rows are synthetic KeyError injection only and excluded from parity claims.
+
+| Reading (psi) | Sensor > 300 psi | 300 psi < Sensor | Sensor.read() > 300 psi | 300 psi < Sensor.read() |
+| --- | --- | --- | --- | --- |
+| 0 | true | true | false | false |
+| 299 | true | true | false | false |
+| 300 | false | false | false | false |
+| 301 | false | false | true | true |
+| 400 | false | false | true | true |
+
+At equality, both inclusive comparisons are true and both strict comparisons false; equality true and inequality false. Full six-operator results are in the JSON evidence.
+
+The apparent reversed Rust expression **does** produce reversed direct comparison ordering after Python reflection. PyO3 quantity comparison returns NotImplemented for an incompatible Sensor operand, allowing reflected Sensor comparison. The tester originally raised TypeError for threshold-left inequalities and returned wrong reflected equality at 300 psi: **22 discrepancies** in the 360 observations. The final matrix has **0 discrepancies** in those observations. `.read()` ordering is normal. Specifically, `FTPT.read() > 300*psi` agrees for every requested value.
+
+Incompatible quantities: ordering raises TypeError, equality returns false, inequality true. Unknown-unit read returns a float; ordinary numeric comparison works, ordering against a quantity raises TypeError. Rust quantity comparison uses f64::total_cmp; signed zero ordering and IEEE division-by-zero behavior differ from ordinary Python floats and were added to regressions. Quantity in-place arithmetic mutates aliased quantities.
+
+### Compiled call observations
+
+`binding-calls.json` records **28 additional expressions**. It covers requested wait_for cases, finite wait_until, open/actuate arity and bool extraction, read arity, nonexistent sensor method, getattr, *args/**kwargs, keyword names, numeric constructors, interval bool extraction, enum conversions, and Valve identity. Device actions in this file are **stubbed**, so this proves wrapper argument behavior, not commands/state feedback.
+
+All observed call outcomes/types match after fixes except `wait_until(lambda: True)` without timeout: upstream panics on this host when evaluating `Instant::now() + Duration::MAX`; PyO3 raises PanicException. The simulator continues and now warns/marks partial. A finite explicit timeout works. This upstream behavior was not edited. Negative/nonfinite duration panic equivalence and other host/platform timing edge cases were not certified.
+
+## Phase C: API parity and findings
+
+| Area | Evidence / result | Remaining boundary |
+| --- | --- | --- |
+| Exports/signatures/prelude | Both extractor and independent checker match current origin/main; all declared common function names inspected | Source extraction is regex-based, not a Rust parser |
+| Direct/reflected/read comparisons | 360 compiled observations now match | Synthetic reads; production read errors untested |
+| wait_for(500*ms), 500, no args | Compiled: works / TypeError / TypeError | Real wait scheduling not compared |
+| wait_until(lambda: sensor.read()>300*psi, 5*s) | Compiled finite-timeout case works | No-timeout panic remains, explicitly partial |
+| valve.open(), open(True), actuate(True), actuate("OPEN") | Wrapper probes: works / TypeError / works / TypeError | Actuation bodies stubbed |
+| sensor.read(), read(1), open() | Converted Pressure / TypeError / AttributeError in harness | Actual IPC errors not compiled |
+| Keywords | Fixed simulator binding to actual Rust parameter names, including `open`, `raw`, `stage_name`, `abort_condition`, `safe_valve_states`, `sam_hostname`, `should_enable` | Command-producing free functions reviewed as source and tested only in simulator |
+| Aliases/getattr/unpacking | Known aliases checked; dynamic calls/unpacking/getattr marked partial | No whole-program proof of every branch or dynamically rebound name |
+| Constructors | Unmapped Sensor/Valve construction is legal; tester no longer rejects mere construction | Access still depends on environment; missing access uses simulator exceptions |
+| Quantity classes | Actual exported classes now support isinstance/type; numeric strings rejected, bool-to-f64 accepted; private raw/kind no longer public | Exact repr formatting/subclass semantics not exhaustively audited |
+| Valve identity / ValveState | Compiled identity equality, integer enum equality/int conversion/no constructor/unhashability covered | Non-open/closed abort safe states remain outside simulator model |
+| Invalid API/name calls | Historical missing imports, stop(), lowercase true, nonexistent monitoring name, Duration abort timer rejected | Name/flow analysis is conservative and not a full Python type system |
+| Unreachable code | Constant-false invalid API calls become partial warnings instead of false rejections | Other unreachable/control-flow and lexical-scope cases remain incompletely analyzed |
+| Imports | common/time/math modeled; missing imports rejected; other imports explicitly simulation warnings | Arbitrary valid Luna Python imports are not executable in browser |
+| Abort behavior | Existing FC-inspired model/regressions retained | Async acknowledgments, process scheduling, full abort communications and error classes not certified |
+
+Confirmed fixes were preceded by reproducing regression cases. Initial seven audit tests produced 10 failing subcases and four errors; subsequent independently observed enum/type/opaque-access issues also had failing cases before changes. Existing simulator-vs-simulator tests are treated as regression evidence only.
+
+Known unresolved differences include SensorNotFoundError/IPC error class behavior versus simulator errors, internal timing/async abort semantics, unsupported enum safing states, unrestricted imports, generic Python reflection/attributes, and complex scope/control-flow inference. The simulated test environment does not verify mapping names, sensor engineering units, or an installed vehicle build. Explicit `.read()` cannot compensate for an incorrectly configured unit.
+
+## Phase D: original Notion scripts and source portability
+
+Sources accessed read-only through connected Notion fetch:
+
+- https://app.notion.com/p/2ab27990d78e8066bacdc26077843981 — Launch Sequences (Vespula), supplied last-edited timestamp 2026-09-30T14:04:01.286Z; 11 Python blocks found.
+- https://app.notion.com/p/8cf33c6c491e4eda8a13096128f72ec0 — Sequences, timestamp 2026-11-10T21:14:45.710Z; 90 Python blocks found. Page says SharePoint is becoming defunct and points to gt-space/sequences. These pages are historical evidence, not approved current operational procedures. No claim that WIP/obsolete examples are valid.
+
+Selected original blocks are stored under tests/fixtures/luna. Only code-fence delimiter newline handling differs; code, comments, tabs and invalid original content were not repaired.
+
+| Original sample | Outcome |
+| --- | --- |
+| Vespula prePress | Bundled app.js example equals original code exactly after removing fixture's single trailing fence newline. Unchanged script passes simulated execution, 20.005 deterministic seconds, with synthetic psi profiles. No production execution claim. |
+| Vespula launchSequence V1 | Original fails Python syntax at line 91 (`if not reco_recvd_launch()` lacks colon). Lowercase true/false and stop() are additional historical problems; no repaired version is claimed to pass. |
+| CTS page first Abort Sequence block | Unchanged original passes simulated execution with its 21 synthetic valve mappings; no pressure units needed. No physical abort/safing validation. |
+
+Not all 101 blocks were executed. No SharePoint files or the separate gt-space/sequences repository were fetched; WIP/obsolete variants were not certified. Regression cases separately reject missing time import, invalid function names, lowercase Python boolean, and Duration-valued abort timer. Rejection is a successful validation outcome.
+
+Browser audit preserves Unicode, tabs, multiline indentation, comments, and trailing newline through .py import, local saved-source restoration/reload, and UTF-8 .py download. Existing browser suite covers saved-test/environment restoration, diagnostic/event source links, timeline highlighting, environment-file import, and abort displays. New browser test confirms non-ASCII transport failure independently with browser btoa + fatal UTF-8 decode, without contacting Servo. A screenshot is committed at reports/browser/audit-unicode-warning.png; inspected visually. Source is preserved; the host lacks some emoji glyphs in the screenshot font.
+
+## Phase E: upstream synchronization and status publishing
+
+Ran generator and checker against the exact archive, and independently compared exported names, parameter signatures, optional arguments, unit constants/scales, enum definitions and Flight2 namespace injection. Added SHA-256 source fingerprints for sequence implementation, relevant communication definitions, Cargo.lock/common dependencies, GUI sequence transport and Servo route. Fingerprints deliberately over-detect textual changes; a matching hash does not prove a simulator implementation correct.
+
+`scripts/audit_luna_drift.py` mutates only a temporary source copy. `drift-mutations.json` records **11 mutations, 22 expected nonzero tool exits**: removed/added export, renamed parameter, changed method signature, changed optional, PyO3 signature attribute, unit behavior, Measurement conversion, enum addition, prelude change, comparison order change. Both tools reject every mutation. The real Luna tree was untouched.
+
+The status writer rejects incomplete SHAs; CLI false status was verified using exact revisions. Browser tests exercise failed, stale, malformed, mismatched-revision, bad-build and matching-baseline status. Build metadata must now explicitly be successful and contain full valid revisions/timestamp. Banner wording now claims a matching reviewed source baseline, not full API certification.
+
+Workflow review/fixes:
+
+- Test/deploy runs checks on branch/PR; deploy still requires main push and successful test dependency. Luna SHA is captured from the actual checked-out upstream revision and passed to deployment metadata.
+- Monitor now runs Python regressions before writing a positive status; it writes false status after contract/test failure and ends with a failed job, rather than silently finishing green.
+- Status publishing uses an orphan commit and forces only `compatibility-status`. No main commit/push. Monitor token needs contents:write and pull-requests:write; ordinary test job remains contents:read; Pages deploy uses pages/id-token permissions.
+- Sync branch is explicitly based on fetched origin/main, fixing manual-dispatch checkout assumptions. New PRs are draft; an existing automation PR is returned to draft on updates. No automatic merge command exists.
+- Scheduled workflows execute from default main. This PR has not been merged, so its new monitoring behavior is not active on default main merely because the feature branch is pushed.
+- Repo settings must allow workflow PR creation and status-branch force pushes. Protected branches, organization permissions, token access to Luna, GitHub cron, Actions artifact upload, Pages deployment, real public status CORS/cache and bot PR lifecycle were **not exercised remotely**. YAML parsing and extracted shell grammar were checked locally. Status fetch failure leaves a warning/stale state, not a compatibility claim.
+
+## Phase F: reproducible commands and final local results
+
+Initial baseline: 71 Python tests and 28 JS tests passed before fixes. Final:
+
+| Check | Result |
+| --- | --- |
+| python3 -m unittest discover -s tests -v | **94 passed**, no skipped tests |
+| node --test tests/*.mjs | **30 passed** |
+| node --check for every src/*.js | Passed |
+| python3 -m py_compile src/*.py scripts/*.py | Passed |
+| check_luna_contract.py + generate_luna_contract.py against archive | Both passed |
+| Drift-copy mutation integration | 11/11 mutations caught by both tools |
+| tests/test_browser.cjs | 1/1 passed with actual browser Pyodide |
+| tests/test_audit_browser.cjs | 1/1 passed; six status states and UTF-8/tab round trip |
+| Workflow YAML + bash -n on run steps | Both workflows passed syntax review |
+| git diff --check | Passed |
+
+Core reproduction (run in tester; do not build inside Luna):
+
+```sh
+git fetch origin
+git -C ~/src/luna fetch origin
+mkdir -p /tmp/luna-audit-upstream
+git -C ~/src/luna archive cf33309b2cf02e78fff18668dfca2f74ec77bd5f | tar -x -C /tmp/luna-audit-upstream
+python3 scripts/check_luna_contract.py /tmp/luna-audit-upstream
+python3 scripts/generate_luna_contract.py /tmp/luna-audit-upstream
+python3 scripts/audit_luna_drift.py /tmp/luna-audit-upstream
+python3 scripts/build_luna_audit_harness.py /tmp/luna-audit-upstream /tmp/luna-binding-audit
+cargo build --manifest-path /tmp/luna-binding-audit/Cargo.toml
+cp /tmp/luna-binding-audit/target/debug/libluna_probe.so /tmp/luna-binding-audit/luna_probe.so
+python3 scripts/probe_luna_audit_harness.py /tmp/luna-binding-audit
+python3 scripts/probe_luna_audit_calls.py /tmp/luna-binding-audit
+python3 -m unittest discover -s tests -v
+node --test tests/*.mjs
+```
+
+Browser runtime installed with `npm install --no-save --prefix /tmp/sequence-browser playwright@1.56.1 pyodide@314.0.7`, `playwright install chromium`, and a local-only src/pyodide symlink. Missing libnspr4/libnss3 were downloaded with apt-get download and extracted using dpkg-deb under `/tmp/luna-browser-libs`; no system packages/services changed. Browser commands used:
+
+```sh
+LD_LIBRARY_PATH=/tmp/luna-browser-libs/root/usr/lib/x86_64-linux-gnu NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_browser.cjs
+LD_LIBRARY_PATH=/tmp/luna-browser-libs/root/usr/lib/x86_64-linux-gnu NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_audit_browser.cjs
+```
+
+Logs captured during work under `/tmp/luna-audit-*`; durable observations, fixtures, screenshot and reproducible scripts are committed. Failed harness build iterations were corrected before generating final observations. Initial browser dependency failure was resolved in the disposable library directory. The compiled no-timeout PanicException is expected evidence, not a passing compatibility result.
+
+## Final limits and decision
+
+**NOT READY** for the broad assertion that any script the tester accepts will behave identically when pasted into current Luna. Remaining blockers are upstream first-line/Unicode transport defects, the compiled omitted-timeout panic, unverified production Sensor.read/error paths, and intentionally incomplete modeling of Python reflection/imports/async APIs. No simulator-only result substitutes for a production binding test. No deployed vehicle, actual GUI/server round trip, FC memory, real sockets, hardware response, valve dynamics, ignition, or physical-system safety was tested.
+
+The unchanged Vespula prePress example and the finite-timeout explicit-read comparison path have positive, scoped evidence. The report's implementation revision and matrix identify exactly what was tested; the website now warns on the specifically detected portability/dynamic cases and describes matching source as a baseline rather than certification.

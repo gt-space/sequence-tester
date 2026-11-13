@@ -683,8 +683,8 @@ class Simulator:
             sim.sync_clock()
             limit = timeout._raw if isinstance(timeout, Quantity) else sim.max_duration - sim.time
             poll = poll_interval._raw if isinstance(poll_interval, Quantity) else 0.01
-            if poll <= 0:
-                raise ValueError("poll_interval must be positive")
+            if not math.isfinite(poll) or poll < 0:
+                raise ValueError("poll_interval must be finite and nonnegative")
             deadline = min(sim.time + limit, sim.max_duration)
             calls = 0
             while not condition():
@@ -699,7 +699,7 @@ class Simulator:
                     return
                 if calls > 100000:
                     raise SimulationLimit("Too many wait_until polls")
-                sim.advance(min(poll, deadline - sim.time))
+                sim.advance(min(poll if poll else .001, deadline - sim.time))
                 calls += 1
 
         def interval(count, period):

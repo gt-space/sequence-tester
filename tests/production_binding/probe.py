@@ -49,6 +49,7 @@ assert errors['common.Valve("missing").is_open()']=='ValveNotFoundError'
 assert common.Valve('valve').is_open() is True
 write(400,'psi')
 common.wait_until(lambda: common.Sensor('FTPT').read()>300*common.psi,5*common.s)
+common.wait_until(lambda: True,1*common.s,0*common.s)
 commands=[]
 for call in [lambda:common.Valve('valve').open(),lambda:common.Valve('valve').actuate(open=False),lambda:common.create_abort_stage('synthetic','False',{common.Valve('valve'):(common.ValveState.Closed,500)}),lambda:common.set_abort_stage('synthetic')]:
     call();data=sock.recv(4096)

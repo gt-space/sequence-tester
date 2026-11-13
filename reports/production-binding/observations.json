@@ -1,10 +1,10 @@
 {
   "isolation": {
     "namespaces": {
-      "mnt": "mnt:[4026532266]",
-      "ipc": "ipc:[4026532268]",
+      "mnt": "mnt:[4026532382]",
+      "ipc": "ipc:[4026532384]",
       "net": "net:[4026532271]",
-      "pid": "pid:[4026532269]"
+      "pid": "pid:[4026532385]"
     },
     "host_namespaces": {
       "mnt": "mnt:[4026532257]",

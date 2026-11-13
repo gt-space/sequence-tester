@@ -61,3 +61,12 @@ class FunctionScope(unittest.TestCase):
         result=run_sequence('# unused helper\ndef unused():\n    valve.open(True)',ENV,True)
         self.assertEqual(result['checks']['api'],'partial',result)
         self.assertEqual(result['checks']['runtime'],'pass',result)
+
+class DurationBoundaries(unittest.TestCase):
+    def test_zero_poll_is_a_valid_luna_call(self):
+        r=run_sequence('wait_until(lambda: True, 1*s, 0*s)',ENV,True)
+        self.assertEqual(r['checks']['runtime'],'pass',r)
+    def test_known_invalid_durations_do_not_pass_static_check(self):
+        for source in ['wait_for(float("inf")*s)','wait_for(-1*s)','wait_until(lambda: True, 1*s, float("nan")*s)']:
+            r=run_sequence(source,ENV,False)
+            self.assertEqual(r['checks']['api'],'fail',r)

@@ -1,6 +1,6 @@
 # Independent Luna Python compatibility audit
 
-**Verdict: NOT READY for an unrestricted exact-script / full Python API compatibility claim.** The tested comparison behavior and common operator calls have materially improved. Selected ASCII scripts with matching external mappings pass. This is neither full production-binding certification nor a physical-system safety assessment.
+**Current verdict: CONDITIONAL for the explicitly supported operator-script subset.** Known deterministic GUI/Flight2 failures are rejected, and dynamic/unmodeled cases are partially verified. The follow-up below includes actual isolated production-binding evidence and successful remote CI. This is not universal Python compatibility or a physical-system safety assessment. Earlier NOT READY findings are retained as dated audit history, with superseding evidence below.
 
 ## Revisions and provenance
 
@@ -9,7 +9,7 @@
 | Initial tester / initial PR head | `35eb351263c187689dae60a7f2b0f9fa4704291a` |
 | Tester origin/main, unchanged | `d0465ce77019a8cbcb5c267fbd90d72ea09dccb8` |
 | Luna origin/main authority | `cf33309b2cf02e78fff18668dfca2f74ec77bd5f` |
-| Published implementation audited here | `cdb29e29829290dd63e3038be803b4177847989f` |
+| Initial implementation audited here | `cdb29e29829290dd63e3038be803b4177847989f` |
 | Audited implementation tree | `9e964d7e77d6531380a7210ef80c2236a40b3dc4` |
 
 Report-only follow-up commits do not change the implementation identified above. PR: https://github.com/gt-space/sequence-tester/pull/4 . Branch: `feat/luna-api-compatibility`.
@@ -173,7 +173,7 @@ LD_LIBRARY_PATH=/tmp/luna-browser-libs/root/usr/lib/x86_64-linux-gnu NODE_PATH=/
 
 Logs captured during work under `/tmp/luna-audit-*`; durable observations, fixtures, screenshot and reproducible scripts are committed. Failed harness build iterations were corrected before generating final observations. Initial browser dependency failure was resolved in the disposable library directory. The compiled no-timeout PanicException is expected evidence, not a passing compatibility result.
 
-## Final limits and decision
+## Initial audit limits and decision (superseded by follow-up)
 
 **NOT READY** for the broad assertion that any script the tester accepts will behave identically when pasted into current Luna. Remaining blockers are upstream first-line/Unicode transport defects, the compiled omitted-timeout panic, unverified production Sensor.read/error paths, and intentionally incomplete modeling of Python reflection/imports/async APIs. No simulator-only result substitutes for a production binding test. No deployed vehicle, actual GUI/server round trip, FC memory, real sockets, hardware response, valve dynamics, ignition, or physical-system safety was tested.
 
@@ -192,3 +192,25 @@ Work resumed from `5fcfbf91f874392fc59c75476517de1cc0d29171`. `git ls-remote` co
 ### Remote isolation preflight evidence
 
 Remote CI runs 43374338453 / 43374334849 correctly failed before production imports: Ubuntu latest's Bubblewrap loopback setup was denied. The next runs 43374552396 / 43374545243 also correctly stopped at namespace preflight (`uid_map: Operation not permitted`). No IPC test ran on those denied runners. The workflow is being pinned to Ubuntu 22.04, which supports the required user namespaces, rather than relaxing filesystem/network isolation or skipping tests. The exact same fail-closed production runner passes locally using an outer private network namespace plus Bubblewrap. A subsequent successful remote run is still required.
+
+
+## Follow-up results and current decision
+
+The new implementation is based on tested Luna main `cf33309b2cf02e78fff18668dfca2f74ec77bd5f`. Implementation checkpoint `80c02e8e1f06e055280ab5862194ccc992f7405b` passed both actual remote workflows:
+
+- PR run https://github.com/gt-space/sequence-tester/actions/runs/43374782514 — success.
+- Push run https://github.com/gt-space/sequence-tester/actions/runs/43374776668 — success.
+- Both ran the full production binding in private namespaces, drift mutations, Python publication/draft-PR tests, JavaScript checks and both actual browser/Pyodide regressions. Deploy was skipped as required. Artifact IDs/digests and step outcomes are in `reports/production-binding/remote-ci.json`.
+- The zero-poll regression/fix added afterward is also tested locally against the real production binding; final remote verification is recorded in the subsequent report update.
+
+Final local follow-up checks: **110 Python tests**, **30 JS tests**, both Playwright/Pyodide suites, all source JS syntax and Python compilation, generator/checker against exact upstream, and 11 drift mutations detected by both tools. Namespace source guard and production fixture guard tests were added. `reports/production-binding/observations.json` contains 360 actual production comparisons, error names, four decoded actual command datagrams and differing host/test namespace IDs, with `common_source_unchanged: true`. Fresh production runs passed after the final simulator changes, including the valid zero-poll call. Tests do not fabricate actuator feedback: injected state remains independently controlled.
+
+The production binding is no longer approximated for the tested sensor-read/deserialization/conversion/comparison, Valve state, argument-validation and command-serialization paths. All original common files are copied unchanged and hash-compared before/after building; full isolation is asserted before import or resource creation. The real library is never imported on the host. The synthetic fixture binary independently rejects host execution. No host `/tmp`, `/dev/shm`, `/home`, hardware device paths or service sockets are mounted. The private network differs from the host, including when Bubblewrap shares the outer **private** namespace. The runner never falls back to host IPC and CI never skips an isolation failure.
+
+Publication/draft automation uses shared code exercised by CI: true then false status publication to a disposable bare Git remote, unchanged synthetic main, unreachable-remote failure, branch-specific leases, and absent/existing-ready/existing-draft PR decisions. The publisher passes Actions authentication through process environment into its temporary checkout because checkout-local Git headers do not propagate there. Contract candidates are generated outside the working tree before switching to the bot base, so the workflow does not depend on a generator already being installed on main.
+
+**Remaining explicit gaps:** no real public compatibility-status publication or artificial bot PR was made during tests; GitHub organization/repository write permissions, PR-creation settings, protected-branch behavior and scheduled/default-main activation remain operationally unverified. The workflows cannot be installed on default main without merging, which is forbidden in this task. The real Git protocol was tested against private disposable remotes; GitHub PR lifecycle responses were scripted, not a production GitHub API integration. This boundary is intentional to avoid publishing synthetic status to operators or generating misleading review PRs.
+
+No GUI/Servo service was launched, no real FC process consumed commands, and no asynchronous FC abort/acknowledgment/process-termination timing, physical valve feedback, board/device communications or safety behavior was tested. Mapping names/units remain external operator inputs and are not vehicle-certified. Complex Python remains outside the supported verification subset; it receives partial classification where detected rather than being labeled fully verified. Exceptions/custom classes/imports/reflection/rebinding/scopes/branch-dependent names/unknown argument types and unpacking do not become fully verified merely because one simulated path succeeds.
+
+**Decision: CONDITIONAL**, scoped to the supported API and matching external mappings. Unrestricted exact-script compatibility remains unsupported. Deterministic current-path incompatibilities block execution rather than green/partial success. The original source is preserved without fixes or rewriting. API signatures remain Luna's: the finite-timeout requirement is explicitly a portability policy for observed upstream failure. Physical-system safety is outside this work.

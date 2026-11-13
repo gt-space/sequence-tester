@@ -421,6 +421,10 @@ class LunaApiChecker(ast.NodeVisitor):
         if missing:
             self.record(f"{name}() missing required argument(s): {', '.join(sorted(missing))}", node)
         for param, value in passed.items():
+            if expected[param] in {"Duration", "Option<Duration>"}:
+                duration = self.constant_number(value)
+                if duration is not None and (not math.isfinite(duration) or duration < 0 or duration >= 2**64):
+                    self.record("Portability policy: Duration must be finite, nonnegative and representable in Rust", value)
             kind = expected[param]
             actual = self.type_of(value)
             if actual == "unknown":

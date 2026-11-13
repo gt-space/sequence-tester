@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from luna_contract import (  # noqa: E402
     CONSTRUCTORS, FUNCTIONS, METHODS, OTHER_CLASSES, OTHER_EXPORTS,
-    PRELUDE, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES,
+    PRELUDE, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES, SENSOR_COMPARISON_ORDER,
 )
 
 
@@ -95,6 +95,24 @@ def check(repo):
     assert states, "Cannot locate Luna ValveState enum"
     found_states = set(re.findall(r"^\s{4}(\w+),\s*$", states.group(1), re.MULTILINE))
     assert found_states == VALVE_STATES, f"Luna valve states drifted: {found_states}"
+    # Detect changes to comparison semantics despite an unchanged PyO3 signature.
+    sensor_block = re.search(r"#\[pymethods\]\s*impl\s+Sensor\s*\{(.*?)^\}",
+                             device, re.MULTILINE | re.DOTALL)
+    assert sensor_block and "fn __richcmp__" in sensor_block.group(1), (
+        "Missing Sensor.__richcmp__; update the tester's behavior model"
+    )
+    richcmp = sensor_block.group(1)
+    actual_order = ("reversed" if "other.rich_compare(self.read()?, op)?" in richcmp else
+                    "normal" if "self.read()?.rich_compare(other, op)?" in richcmp else "unknown")
+    assert actual_order == SENSOR_COMPARISON_ORDER, (
+        f"Luna sensor comparison semantics drifted: {actual_order} != {SENSOR_COMPARISON_ORDER}"
+    )
+    # Signatures alone miss #[pyo3(signature=...)], scale factors and method bodies.
+    from generate_luna_contract import extract
+    import luna_contract
+    assert extract(repo)["SOURCE_HASHES"] == getattr(luna_contract, "SOURCE_HASHES", None), (
+        "Luna implementation changed; review behavior, defaults, and binding attributes before updating hashes"
+    )
     print("Luna Python API contract matches upstream bindings and flight prelude.")
 
 

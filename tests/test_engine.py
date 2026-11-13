@@ -83,8 +83,9 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["checks"]["api"], "fail")
 
     def test_unknown_sensor_mapping(self):
-        result = self.check("x = Sensor('missing')\nx.read()")
-        self.assertEqual(result["checks"]["api"], "fail")
+        result = self.check("x = Sensor('missing')\nx.read()", True)
+        self.assertEqual(result["checks"]["api"], "partial")
+        self.assertEqual(result["checks"]["runtime"], "fail")
 
     def test_mapping_constructor_type(self):
         result = self.check("x = Sensor('tank_pt')\nx.open()")
@@ -98,9 +99,9 @@ class EngineTests(unittest.TestCase):
         self.assertEqual([event["line"] for event in result["events"]], [2, 4])
 
     def test_event_source_location_in_loop(self):
-        result = self.check("for i in range(2):\n    press_valve.open()\n    wait_for(1*s)\n    press_valve.close()", True)
+        result = self.check("# source lines\nfor i in range(2):\n    press_valve.open()\n    wait_for(1*s)\n    press_valve.close()", True)
         self.assertEqual(result["checks"]["runtime"], "pass")
-        self.assertEqual([event["line"] for event in result["events"]], [2, 4, 2, 4])
+        self.assertEqual([event["line"] for event in result["events"]], [3, 5, 3, 5])
 
     def test_repeated_valve_commands_do_not_truncate_later_transitions(self):
         source = ("press_valve.open()\n"
@@ -117,7 +118,7 @@ class EngineTests(unittest.TestCase):
                             for item in result["diagnostics"]))
 
     def test_more_than_300_real_transitions_are_preserved(self):
-        source = ("for i in range(350):\n"
+        source = ("# transition regression\nfor i in range(350):\n"
                   "    press_valve.actuate(i % 2 == 0)\n"
                   "    wait_for(1*ms)")
         result = self.check(source, True)
@@ -127,7 +128,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["valves"]["press_valve"], "CLOSED")
 
     def test_excessive_distinct_events_fail_instead_of_silently_truncating(self):
-        source = ("for i in range(10001):\n"
+        source = ("# event limit\nfor i in range(10001):\n"
                   "    press_valve.actuate(i % 2 == 0)")
         result = self.check(source, True)
         self.assertEqual(result["checks"]["runtime"], "fail")
@@ -214,7 +215,7 @@ class EngineTests(unittest.TestCase):
         result = self.check("opening = 'CLOSED'\npress_valve.actuate(opening)", True)
         # Static inference catches simple aliasing; opaque dynamic values are rejected at runtime.
         self.assertEqual(result["checks"]["api"], "fail")
-        result = self.check("def opening(): return 'CLOSED'\npress_valve.actuate(opening())", True)
+        result = self.check("# opaque call regression\ndef opening(): return 'CLOSED'\npress_valve.actuate(opening())", True)
         self.assertEqual(result["checks"]["runtime"], "fail")
 
     def test_integrity_checks_valve_event_accounting(self):
@@ -236,7 +237,7 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(any("timestamps" in problem for problem in simulation_integrity_errors(sim, result)))
 
     def test_interval(self):
-        result = self.check("for i in interval(3, 2*s):\n    print(i)", True)
+        result = self.check("# interval regression\nfor i in interval(3, 2*s):\n    print(i)", True)
         self.assertEqual(result["virtual_time"], 4)
         self.assertEqual(result["stdout"], "0\n1\n2\n")
 
@@ -295,7 +296,7 @@ class EngineTests(unittest.TestCase):
 
     def test_valid_luna_api_signatures(self):
         source = ("press_valve.actuate(True)\n"
-                  "wait_until(condition=lambda: tank_pt >= 300*psi, timeout=5*s, poll_interval=20*ms)\n"
+                  "wait_until(condition=lambda: tank_pt.read() >= 300*psi, timeout=5*s, poll_interval=20*ms)\n"
                   "launch_lug_arm('sam-21', False)\n"
                   "sam_camera_toggle(True)\n"
                   "set_servo_disconnect_abort(True)")
@@ -341,7 +342,7 @@ class EngineTests(unittest.TestCase):
             "name": "tank_pt", "unit": "psi", "interpolation": "linear",
             "samples": [{"at": 0, "value": 400}, {"at": 2, "value": 500}],
         }]}
-        source = ("create_abort_stage('press', 'tank_pt > 450*psi', {press_valve: (CLOSED, 500)})\n"
+        source = ("create_abort_stage('press', 'tank_pt.read() > 450*psi', {press_valve: (CLOSED, 500)})\n"
                   "set_abort_stage('press')\npress_valve.open()\nwait_for(4*s)\npress_valve.open()")
         result = self.check(source, True, mapping)
         self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
@@ -357,7 +358,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(stage["triggered"], abort["time"])
 
     def test_abort_condition_not_exercised_warning(self):
-        source = ("create_abort_stage('press', 'tank_pt > 450*psi', {press_valve: (CLOSED, 500)})\n"
+        source = ("create_abort_stage('press', 'tank_pt.read() > 450*psi', {press_valve: (CLOSED, 500)})\n"
                   "set_abort_stage('press')\nwait_for(5*s)")
         result = self.check(source, True)
         self.assertEqual(result["checks"]["runtime"], "pass")
@@ -366,8 +367,8 @@ class EngineTests(unittest.TestCase):
         self.assertIsNone(result["simulation"]["abort_stages"][0]["triggered"])
 
     def test_stage_switch_and_multiple_safing_delays(self):
-        source = ("create_abort_stage('early', 'tank_pt > 500*psi', {})\n"
-                  "create_abort_stage('late', 'tank_pt > 300*psi', "
+        source = ("create_abort_stage('early', 'tank_pt.read() > 500*psi', {})\n"
+                  "create_abort_stage('late', 'tank_pt.read() > 300*psi', "
                   "{press_valve: (CLOSED, 0), vent_valve: (OPEN, 1000)})\n"
                   "set_abort_stage('early')\nwait_for(1*s)\n"
                   "set_abort_stage('late')\npress_valve.open()\nwait_for(3*s)\n"
@@ -418,7 +419,7 @@ class EngineTests(unittest.TestCase):
         self.assertIn("Unknown abort stage", result["diagnostics"][-1]["message"])
 
     def test_abort_condition_sensor_reads_link_back_to_definition(self):
-        source = ("create_abort_stage('safe', 'tank_pt > 400*psi', {})\n"
+        source = ("create_abort_stage('safe', 'tank_pt.read() > 400*psi', {})\n"
                   "set_abort_stage('safe')\nwait_for(1*s)")
         result = self.check(source, True)
         self.assertEqual(result["simulation"]["sensor_read_lines"]["tank_pt"], [1])
@@ -572,6 +573,45 @@ while CTPT.read() < 300*psi:
         self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
         self.assertGreaterEqual(result["virtual_time"], 0.02)
         self.assertEqual(result["timing"]["requested_speed"], 1)
+
+
+    def test_direct_sensor_comparisons_match_luna_richcmp(self):
+        # Luna currently evaluates threshold.compare(reading, op) in Sensor.__richcmp__.
+        source = (
+            "assert tank_pt > 300*psi\n"
+            "assert tank_pt >= 300*psi\n"
+            "assert not (tank_pt < 300*psi)\n"
+            "assert not (tank_pt <= 300*psi)\n"
+            "assert tank_pt == 0*psi\n"
+            "assert not (tank_pt != 0*psi)\n"
+            "assert tank_pt.read() < 300*psi\n"
+        )
+        result = self.check(source, True)
+        self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
+        self.assertTrue(any("reverses direct Sensor" in d["message"] for d in result["diagnostics"]))
+
+    def test_bound_method_alias_enforces_luna_signature(self):
+        result = self.check("action = press_valve.open\naction(1)")
+        self.assertEqual(result["checks"]["api"], "fail", result["diagnostics"])
+        self.assertTrue(any("takes at most 0" in d["message"] for d in result["diagnostics"]))
+        valid = self.check("action = press_valve.open\naction()", True)
+        self.assertEqual(valid["checks"]["api"], "pass", valid["diagnostics"])
+        self.assertEqual(valid["checks"]["runtime"], "pass", valid["diagnostics"])
+
+    def test_luna_function_alias_enforces_arguments(self):
+        bad = self.check("pause = wait_for\npause(1)")
+        self.assertEqual(bad["checks"]["api"], "fail", bad["diagnostics"])
+        good = self.check("pause = wait_for\npause(10*ms)", True)
+        self.assertEqual(good["checks"]["runtime"], "pass", good["diagnostics"])
+
+    def test_getattr_literal_is_checked_and_dynamic_is_partial(self):
+        invalid = self.check("action = getattr(press_valve, 'get_name')\naction()")
+        self.assertEqual(invalid["checks"]["api"], "fail", invalid["diagnostics"])
+        literal = self.check("action = getattr(press_valve, 'open')\naction(1)")
+        self.assertEqual(literal["checks"]["api"], "fail", literal["diagnostics"])
+        dynamic = self.check("name = 'open'\naction = getattr(press_valve, name)\naction()", True)
+        self.assertEqual(dynamic["checks"]["api"], "partial", dynamic["diagnostics"])
+        self.assertEqual(dynamic["checks"]["runtime"], "pass", dynamic["diagnostics"])
 
 
 if __name__ == "__main__":

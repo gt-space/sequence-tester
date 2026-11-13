@@ -1,0 +1,3842 @@
+[
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor < threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold < sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor.read() < threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold < sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor <= threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold <= sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor.read() <= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold <= sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor > threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold > sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor.read() > threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold > sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor >= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold >= sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "sensor.read() >= threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 0,
+    "expression": "threshold >= sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor < threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold < sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor.read() < threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold < sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor <= threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold <= sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor.read() <= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold <= sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor > threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold > sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor.read() > threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold > sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor >= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold >= sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "sensor.read() >= threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 299,
+    "expression": "threshold >= sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor < threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold < sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor.read() < threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold < sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor <= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold <= sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor.read() <= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold <= sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor == threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold == sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor.read() == threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold == sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor != threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold != sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor.read() != threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold != sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor > threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold > sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor.read() > threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold > sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor >= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold >= sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "sensor.read() >= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 300,
+    "expression": "threshold >= sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor < threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold < sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor.read() < threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold < sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor <= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold <= sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor.read() <= threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold <= sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor > threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold > sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor.read() > threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold > sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor >= threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold >= sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "sensor.read() >= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 301,
+    "expression": "threshold >= sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor < threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold < sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor.read() < threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold < sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor <= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold <= sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor.read() <= threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold <= sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor > threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold > sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor.read() > threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold > sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor >= threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold >= sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "sensor.read() >= threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "psi",
+    "value": 400,
+    "expression": "threshold >= sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 0,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 299,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 300,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 301,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "unknown",
+    "value": 400,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 0,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 299,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 300,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 301,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold < sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor.read() < threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold < sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold <= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor.read() <= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold <= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold == sensor",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor.read() == threshold",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold == sensor.read()",
+    "luna": false,
+    "tester": false,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold != sensor",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor.read() != threshold",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold != sensor.read()",
+    "luna": true,
+    "tester": true,
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold > sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor.read() > threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold > sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold >= sensor",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "sensor.read() >= threshold",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "V",
+    "value": 400,
+    "expression": "threshold >= sensor.read()",
+    "luna": "TypeError",
+    "tester": "TypeError",
+    "equal": true
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor < threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold < sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor.read() < threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold < sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor <= threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold <= sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor.read() <= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold <= sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor == threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold == sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor.read() == threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold == sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor != threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold != sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor.read() != threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold != sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor > threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold > sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor.read() > threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold > sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor >= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold >= sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "sensor.read() >= threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 0,
+    "expression": "threshold >= sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor < threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold < sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor.read() < threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold < sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor <= threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold <= sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor.read() <= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold <= sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor == threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold == sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor.read() == threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold == sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor != threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold != sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor.read() != threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold != sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor > threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold > sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor.read() > threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold > sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor >= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold >= sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "sensor.read() >= threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 299,
+    "expression": "threshold >= sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor < threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold < sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor.read() < threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold < sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor <= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold <= sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor.read() <= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold <= sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor == threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold == sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor.read() == threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold == sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor != threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold != sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor.read() != threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold != sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor > threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold > sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor.read() > threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold > sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor >= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold >= sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "sensor.read() >= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 300,
+    "expression": "threshold >= sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor < threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold < sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor.read() < threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold < sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor <= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold <= sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor.read() <= threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold <= sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor == threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold == sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor.read() == threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold == sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor != threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold != sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor.read() != threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold != sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor > threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold > sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor.read() > threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold > sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor >= threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold >= sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "sensor.read() >= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 301,
+    "expression": "threshold >= sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor < threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold < sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor.read() < threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold < sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor <= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold <= sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor.read() <= threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold <= sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor == threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold == sensor",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor.read() == threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold == sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor != threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold != sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor.read() != threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold != sensor.read()",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor > threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold > sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor.read() > threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold > sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor >= threshold",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold >= sensor",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "sensor.read() >= threshold",
+    "luna": "KeyError",
+    "tester": true,
+    "equal": false
+  },
+  {
+    "unit": "missing",
+    "value": 400,
+    "expression": "threshold >= sensor.read()",
+    "luna": "KeyError",
+    "tester": false,
+    "equal": false
+  }
+]

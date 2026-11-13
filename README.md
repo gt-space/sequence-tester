@@ -40,9 +40,22 @@ node --check src/timeline.js
 node --check src/worker.js
 node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_saved_sequences.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
 python3 scripts/check_luna_contract.py /path/to/luna-main
+python3 scripts/generate_luna_contract.py /path/to/luna-main  # verify extracted contract
 ```
 
-GitHub Actions runs these checks on **every branch push and PR**, and daily. CI checks out **Luna's current `main`** and fails if the Rust/PyO3 exports, public function/method signatures, quantity definitions, valve-state enum, or FC Python prelude diverge from `src/luna_contract.py`. This intentionally blocks an unnoticed API change; semantic changes may still require manual review and simulator updates. The real-browser regression exercises late valve events, synchronized cursors, saved test restoration, strict API diagnostics, and abort-stage/safing displays. When it fails, CI uploads browser state and a screenshot as `browser-regression-failure` for diagnosis. Only a push to `main` deploys the static site through GitHub Pages.
+GitHub Actions runs these checks on **every branch push and PR**, and daily. CI checks out **Luna's current main** (read-only) and checks public signatures, exports, units, the Flight2 prelude, and reviewed source fingerprints. Any change to the fingerprinted implementation requires review and regression coverage. The independent Rust-source extractor can generate the contract; simulator export/method coverage checks fail if a new API name lacks support. Behavioral changes beyond these checks still require review. The real-browser regression exercises late valve events, synchronized cursors, saved test restoration, strict API diagnostics, and abort-stage/safing displays. When it fails, CI uploads browser state and a screenshot as `browser-regression-failure` for diagnosis. Only a push to `main` deploys the static site through GitHub Pages.
+
+## Staying aligned with upstream Luna
+
+Luna is the source of truth. The tester does not require Luna changes or access to write to its repository.
+
+- **Contract extraction:** Run scripts/generate_luna_contract.py /path/to/luna --write to regenerate src/luna_contract.py from upstream Rust/PyO3 bindings. The result is reviewable, not automatically merged. CI verifies both the extractor and the committed contract.
+- **Continuous monitoring:** The Monitor Luna API compatibility GitHub Action runs daily on the default branch. It publishes an independent live status even after API drift. When the extractor can represent a changed surface, it opens a draft API-update pull request; maintainers must complete behavior/tests before merging. Creating automated PRs requires that the repository permits GitHub Actions to create pull requests.
+- **Deployed version and live status:** Each Pages build ships a tested Luna and tester commit identifier. The site fetches live status from the public compatibility-status branch. Missing, stale, failed, or mismatched results are shown as warnings rather than a successful compatibility claim.
+- **Dynamic calls:** Known Luna function aliases and bound device-method aliases are checked. Dynamic getattr with an unknown method name is marked partially verified, even when an executed simulation path succeeds.
+- **Direct Sensor comparisons:** Luna's current Sensor rich comparison evaluates the threshold against the sensor reading, reversing the intuitive meaning of direct comparisons. The simulator mirrors it. Use explicit sensor .read() in thresholds; the validator warns about direct comparisons. The contract extractor also tracks upstream comparison order.
+
+This verifies a selected Python API surface on Luna main, not arbitrary implementation semantics, a particular installed Flight2/SAM build, or physical safety. Valve feedback and aborts remain intentionally idealized.
 
 ## Test Environment
 
@@ -139,3 +152,19 @@ The supported sequence API is modeled after `common/src/sequence/{mod,func,devic
 - Source and mapping JSON stay in the visitor's `localStorage` and are not uploaded. Downloaded files are generated locally.
 
 When Luna's binding surface changes, the daily contract check fails until `src/luna_contract.py`, the validator, simulator, and regression tests have been reviewed and updated together. This is API-surface synchronization, not certification of the flight software's internal semantics.
+
+## Independent compatibility audit
+
+See [the audit report](reports/LUNA_COMPAT_AUDIT.md) for exact upstream revisions, compiled extracted-binding evidence, reproducible commands, fixes, and remaining limitations. A matching source baseline is not full Python API certification. In particular, current upstream GUI Unicode transport, first-line compound statements in Flight2, and omitted `wait_until` timeouts have portability limitations. Browser simulation warns about these cases while preserving the original source.
+
+Run the additional browser audit with `NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_audit_browser.cjs`. To reproduce the isolated compiled comparison test, archive Luna's desired remote revision outside its working tree, run `scripts/build_luna_audit_harness.py ARCHIVE OUTPUT`, compile that disposable crate, and run the probe scripts as documented in the report. The harness has no FC IPC.
+
+### Operator-script compatibility classification
+
+The original source is retained byte-for-byte. Validation checks the exact current Flight2 prelude concatenation and rejects source that cannot pass the current GUI/Servo/Flight2 path, including non-ASCII GUI transport, first-line compound/decorated statements, and `__future__` imports after the prelude. Nothing is automatically repaired.
+
+For the supported portability classification, `wait_until` requires an explicit finite, nonnegative timeout representable by Rust Duration. This is a tester policy for an observed upstream omitted-timeout panic, not a change to Luna's optional Python signature. Unknown timeout expressions, dynamic calls/reflection, rebound names, function scopes, exception paths and unmodeled imports are **partially verified**; successful simulation does not upgrade that classification. Runtime guards cover opaque calls on executed paths.
+
+CI builds the complete unchanged `common` crate from a disposable upstream copy. `scripts/test_production_binding.py SOURCE OUTPUT` imports it only inside separate user/mount/PID/IPC/network namespaces with private `/tmp` and `/dev/shm`, synthetic serialized vehicle state and a synthetic command receiver. If namespace preflight fails, no production IPC test executes and CI fails. No live FC/SAM resources or hardware are needed. Namespace-capable Ubuntu 22.04 runners are used; no host isolation settings are disabled.
+
+Publication regressions use disposable bare Git repositories and scripted GitHub PR responses. They exercise the actual shared publication/bot functions without changing live public compatibility status or opening artificial PRs. Repository-level bot permissions and default-branch scheduling still need operational verification after these workflows are installed on the default branch.

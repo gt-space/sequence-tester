@@ -12,7 +12,9 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    outputs:
+      luna_sha: ${{ steps.luna-revision.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,12 +25,32 @@ jobs:
           node-version: '22'
       - name: Checkout current Luna API
         run: git clone --depth=1 --branch=main https://github.com/gt-space/luna.git /tmp/luna-api
-      - name: Verify Python contract still matches Luna main
-        run: python scripts/check_luna_contract.py /tmp/luna-api
+      - name: Capture exactly tested Luna revision
+        id: luna-revision
+        run: echo "sha=$(git -C /tmp/luna-api rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Verify Luna API contract and extraction
+        run: |
+          python scripts/check_luna_contract.py /tmp/luna-api
+          python scripts/generate_luna_contract.py /tmp/luna-api
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install namespace test dependency
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+      - name: Actual production binding in private namespaces
+        run: python3 scripts/test_production_binding.py /tmp/luna-api /tmp/luna-production-evidence
+      - name: Independent upstream drift mutation regressions
+        run: python3 scripts/audit_luna_drift.py /tmp/luna-api
+      - name: Preserve compiled production binding evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-binding-evidence
+          path: /tmp/luna-production-evidence/
+          if-no-files-found: warn
       - name: Python regression tests
         run: python -m unittest discover -s tests -v
       - name: JavaScript syntax
         run: |
+          node --check src/compatibility.js
           node --check src/app.js
           node --check src/environment.js
           node --check src/filename.js
@@ -36,14 +58,16 @@ jobs:
           node --check src/highlight.js
           node --check src/timeline.js
           node --check src/worker.js
-          node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_saved_sequences.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
+          node --test tests/test_compatibility.mjs tests/test_environment.mjs tests/test_filename.mjs tests/test_saved_sequences.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
       - name: Install browser and Pyodide test runtime
         run: |
           npm install --no-save --prefix /tmp/sequence-browser playwright@1.56.1 pyodide@314.0.7
           /tmp/sequence-browser/node_modules/.bin/playwright install --with-deps chromium
           ln -s /tmp/sequence-browser/node_modules/pyodide src/pyodide
       - name: End-to-end Pyodide and plot cursor regression
-        run: NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_browser.cjs
+        run: |
+          NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_browser.cjs
+          NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_audit_browser.cjs
       - name: Upload browser failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -56,7 +80,7 @@ jobs:
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pages: write
       id-token: write
@@ -73,8 +97,9 @@ jobs:
         run: |
           mkdir -p site-dist/src
           cp index.html site-dist/
-          cp src/app.js src/environment.js src/filename.js src/saved-sequences.js src/highlight.js src/timeline.js src/worker.js src/styles.css src/engine.py src/luna_contract.py src/luna_validation.py src/yjsplogo.png site-dist/src/
+          cp src/compatibility.js src/app.js src/environment.js src/filename.js src/saved-sequences.js src/highlight.js src/timeline.js src/worker.js src/styles.css src/engine.py src/luna_contract.py src/luna_validation.py src/yjsplogo.png site-dist/src/
           cp -r /tmp/sequence-pyodide/node_modules/pyodide site-dist/src/pyodide
+          python scripts/write_luna_status.py --mode build --luna-sha "${{ needs.test.outputs.luna_sha }}" --tester-sha "$GITHUB_SHA" --output site-dist/compatibility-build.json
           sed -i "s|./src/app.js|./src/app.js?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./src/styles.css|./src/styles.css?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./highlight.js|./highlight.js?build=${GITHUB_SHA}|" site-dist/src/app.js
@@ -82,6 +107,7 @@ jobs:
           sed -i "s|./filename.js|./filename.js?build=${GITHUB_SHA}|" site-dist/src/app.js
           sed -i "s|./saved-sequences.js|./saved-sequences.js?build=${GITHUB_SHA}|" site-dist/src/app.js
           sed -i "s|./timeline.js|./timeline.js?build=${GITHUB_SHA}|" site-dist/src/app.js
+          sed -i "s|./compatibility.js|./compatibility.js?build=${GITHUB_SHA}|" site-dist/src/app.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site-dist

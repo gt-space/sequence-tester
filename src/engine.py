@@ -4,13 +4,16 @@ import contextlib
 import io
 import json
 import math
+import inspect
+import struct
+import keyword
 import sys
 import symtable
 import time as host_time
 import traceback
 import types
 
-from luna_contract import API, FUNCTIONS, METHODS, UNIT_CONSTANTS, UNIT_CLASSES, VALVE_STATES
+from luna_contract import API, FUNCTIONS, METHODS, UNIT_CONSTANTS, UNIT_CLASSES, VALVE_STATES, SENSOR_COMPARISON_ORDER
 from luna_validation import analyze_luna_api, validate_abort_expression
 
 IMPORTS = {"common", "time", "math"}
@@ -40,7 +43,7 @@ def check_mapping(raw):
                 name, initial = valve.get("name"), valve.get("initial", "CLOSED")
             else:
                 raise ValueError(f"Invalid valve definition: {valve!r}")
-            if not isinstance(name, str) or not name.isidentifier():
+            if not isinstance(name, str) or (not name.isidentifier() or keyword.iskeyword(name)):
                 raise ValueError(f"Invalid valve name: {name!r}")
             if name in valve_names or name in API:
                 raise ValueError(f"Duplicate or reserved valve name: {name}")
@@ -52,7 +55,7 @@ def check_mapping(raw):
                 raise ValueError("Each sensor must be an object")
             name = sensor.get("name")
             unit = sensor.get("unit", "unknown")
-            if not isinstance(name, str) or not name.isidentifier():
+            if not isinstance(name, str) or (not name.isidentifier() or keyword.iskeyword(name)):
                 raise ValueError(f"Invalid sensor name: {name!r}")
             if name in sensor_data or name in valve_names or name in API:
                 raise ValueError(f"Duplicate or reserved sensor name: {name}")
@@ -141,58 +144,123 @@ def check_source(source, valves, sensors):
                 errors.append(diagnostic("names", "error", f"Undefined name '{node.id}'", node.lineno, node.col_offset + 1))
                 seen.add(node.id)
 
+    # Validate the exact string Flight2 sends to Python, without rewriting it.
+    prelude = "from common import *;OPEN = ValveState.Open;CLOSED = ValveState.Closed;"
+    prelude += "".join(f"{name} = {cls}('{name}');" for cls, names in
+                       (("Valve", valves), ("Sensor", sensors)) for name in names)
+    try:
+        compile(prelude + source, "sequence.py", "exec")
+    except SyntaxError as error:
+        errors.append(diagnostic("api", "error", "Not portable through current Flight2 prelude: " + error.msg,
+                                 error.lineno or 0))
+    if any(ord(char) > 127 for char in source):
+        errors.append(diagnostic("api", "error", "Not portable through current Luna GUI: btoa(source) does not preserve non-ASCII UTF-8 source"))
     errors.extend(analyze_luna_api(tree, valves, sensors))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for item in node.names:
                 if item.name.split(".")[0] not in IMPORTS:
-                    errors.append(diagnostic("runtime", "warning", f"Import '{item.name}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
+                    errors.append(diagnostic("api", "warning", f"API not fully verified: import '{item.name}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
         if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] not in IMPORTS:
-            errors.append(diagnostic("runtime", "warning", f"Import '{node.module}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
+            errors.append(diagnostic("api", "warning", f"API not fully verified: import '{node.module}' is not supported by browser simulation", node.lineno, node.col_offset + 1))
     return tree, errors
 
 
 class Quantity:
     def __init__(self, raw, kind):
-        self.raw = float(raw)
-        self.kind = kind
+        if isinstance(raw, (str, bytes)):
+            raise TypeError("Luna expects a real number")
+        self._raw = float(raw)
+        self._kind = kind
 
     def check(self, other):
-        if not isinstance(other, Quantity) or other.kind != self.kind:
-            raise TypeError(f"Cannot combine {self.kind} with {type(other).__name__}")
-        return other.raw
+        if not isinstance(other, Quantity) or other._kind != self._kind:
+            raise TypeError(f"Cannot combine {self._kind} with {type(other).__name__}")
+        return other._raw
 
     def __add__(self, other):
-        return Quantity(self.raw + self.check(other), self.kind)
+        return make_quantity(self._raw + self.check(other), self._kind)
 
     def __sub__(self, other):
-        return Quantity(self.raw - self.check(other), self.kind)
+        return make_quantity(self._raw - self.check(other), self._kind)
 
     def __mul__(self, value):
-        return Quantity(self.raw * float(value), self.kind)
+        if isinstance(value, (str, bytes)):
+            raise TypeError("Luna expects a real number")
+        return make_quantity(self._raw * float(value), self._kind)
 
     __rmul__ = __mul__
 
     def __truediv__(self, value):
-        return Quantity(self.raw / float(value), self.kind)
+        if isinstance(value, (str, bytes)):
+            raise TypeError("Luna expects a real number")
+        value = float(value)
+        raw = (self._raw / value if value else
+               math.nan if not self._raw else math.copysign(math.inf, self._raw * math.copysign(1, value)))
+        return make_quantity(raw, self._kind)
 
     def __lt__(self, other):
-        return self.raw < self.check(other)
+        if not isinstance(other, Quantity) or self._kind != other._kind:
+            return NotImplemented
+        return self._order() < other._order()
 
     def __le__(self, other):
-        return self.raw <= self.check(other)
+        if not isinstance(other, Quantity) or self._kind != other._kind:
+            return NotImplemented
+        return self._order() <= other._order()
 
     def __gt__(self, other):
-        return self.raw > self.check(other)
+        if not isinstance(other, Quantity) or self._kind != other._kind:
+            return NotImplemented
+        return self._order() > other._order()
 
     def __ge__(self, other):
-        return self.raw >= self.check(other)
+        if not isinstance(other, Quantity) or self._kind != other._kind:
+            return NotImplemented
+        return self._order() >= other._order()
+
+    def __iadd__(self, other):
+        self._raw += self.check(other)
+        return self
+
+    def __isub__(self, other):
+        self._raw -= self.check(other)
+        return self
+
+    def __imul__(self, other):
+        self._raw = (self * other)._raw
+        return self
+
+    def __itruediv__(self, other):
+        self._raw = (self / other)._raw
+        return self
+
+    def _order(self):
+        # Rust f64::total_cmp orders signed zero and NaN bit patterns.
+        bits = struct.unpack(">q", struct.pack(">d", self._raw))[0]
+        return bits ^ ((bits >> 63) & 0x7fffffffffffffff)
 
     def __eq__(self, other):
-        return isinstance(other, Quantity) and self.kind == other.kind and self.raw == other.raw
+        if not isinstance(other, Quantity) or self._kind != other._kind:
+            return NotImplemented
+        return self._order() == other._order()
 
     def __repr__(self):
-        return f"{self.raw:g} {self.kind}"
+        return f"{self._raw:g} {self._kind}"
+
+
+def quantity_class(name, kind):
+    def __init__(self, raw):
+        Quantity.__init__(self, raw, kind)
+    return type(name, (Quantity,), {"__init__": __init__})
+
+
+QUANTITY_TYPES = {name: quantity_class(name, kind) for name, kind in UNIT_CLASSES.items()}
+QUANTITY_KINDS = {kind: QUANTITY_TYPES[name] for name, kind in UNIT_CLASSES.items()}
+
+
+def make_quantity(raw, kind):
+    return QUANTITY_KINDS[kind](raw)
 
 
 class SimulationLimit(Exception):
@@ -472,7 +540,7 @@ class Simulator:
         if sensor.get("mode") == "valve":
             value = self.dynamic_values[name]
             self.last_sensor_read = (name, value)
-            return value if sensor["unit"] == "unknown" else Quantity(value, sensor["unit"])
+            return value if sensor["unit"] == "unknown" else make_quantity(value, sensor["unit"])
         value = sensor["samples"][0]["value"]
         previous = sensor["samples"][0]
         for sample in sensor["samples"][1:]:
@@ -484,32 +552,39 @@ class Simulator:
             value = sample["value"]
             previous = sample
         self.last_sensor_read = (name, value)
-        return value if sensor["unit"] == "unknown" else Quantity(value, sensor["unit"])
+        return value if sensor["unit"] == "unknown" else make_quantity(value, sensor["unit"])
 
     def make_module(self):
         sim = self
         module = types.ModuleType("common")
 
         class ValveState:
-            Undetermined = "UNDETERMINED"
-            Disconnected = "DISCONNECTED"
-            Open = "OPEN"
-            Closed = "CLOSED"
-            Fault = "FAULT"
+            def __new__(cls):
+                raise TypeError("No constructor defined")
+
+            def __int__(self):
+                return self._value
+
+            def __eq__(self, other):
+                if isinstance(other, ValveState):
+                    return self._value == other._value
+                if isinstance(other, int):
+                    return self._value == other
+                return NotImplemented
+
+            def __repr__(self):
+                return "ValveState." + self._name
+
+        for index, state_name in enumerate(("Undetermined", "Disconnected", "Open", "Closed", "Fault")):
+            state = object.__new__(ValveState)
+            state._value, state._name = index, state_name
+            setattr(ValveState, state_name, state)
 
         class Valve:
             def __init__(self, name):
                 if not isinstance(name, str):
                     raise TypeError("Valve name must be a string")
-                if name not in sim.valves:
-                    raise KeyError(f"Unknown valve '{name}'")
                 self.name = name
-
-            def __hash__(self):
-                return hash(self.name)
-
-            def __eq__(self, other):
-                return isinstance(other, Valve) and self.name == other.name
 
             def actuate(self, opening):
                 if type(opening) is not bool:
@@ -548,40 +623,68 @@ class Simulator:
             def __init__(self, name):
                 if not isinstance(name, str):
                     raise TypeError("Sensor name must be a string")
-                if name not in sim.sensors:
-                    raise KeyError(f"Unknown sensor '{name}'")
                 self.name = name
 
             def read(self):
                 return sim.read(self.name)
 
-            def __gt__(self, other):
-                return self.read() > other
-
-            def __ge__(self, other):
-                return self.read() >= other
+            def _compare(self, other, operation):
+                # Luna's PyO3 Sensor.__richcmp__ currently evaluates
+                # other.rich_compare(self.read(), op), reversing the operands.
+                # The contract extractor detects if upstream changes this.
+                reading = self.read()
+                left, right = ((other, reading) if SENSOR_COMPARISON_ORDER == "reversed"
+                               else (reading, other))
+                if operation == "lt":
+                    return left < right
+                if operation == "le":
+                    return left <= right
+                if operation == "gt":
+                    return left > right
+                if operation == "ge":
+                    return left >= right
+                if operation == "eq":
+                    return left == right
+                return left != right
 
             def __lt__(self, other):
-                return self.read() < other
+                return self._compare(other, "lt")
 
             def __le__(self, other):
-                return self.read() <= other
+                return self._compare(other, "le")
+
+            def __gt__(self, other):
+                return self._compare(other, "gt")
+
+            def __ge__(self, other):
+                return self._compare(other, "ge")
+
+            def __eq__(self, other):
+                return self._compare(other, "eq")
+
+            def __ne__(self, other):
+                return self._compare(other, "ne")
 
         def wait_for(duration):
-            if not isinstance(duration, Quantity) or duration.kind != "s":
+            if not isinstance(duration, Quantity) or duration._kind != "s":
                 raise TypeError("wait_for expects a Duration such as 500 * ms")
-            sim.advance(duration.raw)
+            sim.advance(duration._raw)
 
         def wait_until(condition, timeout=None, poll_interval=None):
-            if timeout is not None and (not isinstance(timeout, Quantity) or timeout.kind != "s"):
+            # Classification policy, not an alteration to Luna's optional signature.
+            # Opaque calls reach this guard even when static inference is incomplete.
+            if timeout is None or (isinstance(timeout, Quantity) and
+                    (not math.isfinite(timeout._raw) or timeout._raw < 0 or timeout._raw >= 2**64)):
+                raise ValueError("Portability policy: wait_until requires an explicit finite nonnegative timeout")
+            if timeout is not None and (not isinstance(timeout, Quantity) or timeout._kind != "s"):
                 raise TypeError("wait_until timeout must be a Duration")
-            if poll_interval is not None and (not isinstance(poll_interval, Quantity) or poll_interval.kind != "s"):
+            if poll_interval is not None and (not isinstance(poll_interval, Quantity) or poll_interval._kind != "s"):
                 raise TypeError("wait_until poll_interval must be a Duration")
             sim.sync_clock()
-            limit = timeout.raw if isinstance(timeout, Quantity) else sim.max_duration - sim.time
-            poll = poll_interval.raw if isinstance(poll_interval, Quantity) else 0.01
-            if poll <= 0:
-                raise ValueError("poll_interval must be positive")
+            limit = timeout._raw if isinstance(timeout, Quantity) else sim.max_duration - sim.time
+            poll = poll_interval._raw if isinstance(poll_interval, Quantity) else 0.01
+            if not math.isfinite(poll) or poll < 0:
+                raise ValueError("poll_interval must be finite and nonnegative")
             deadline = min(sim.time + limit, sim.max_duration)
             calls = 0
             while not condition():
@@ -596,19 +699,19 @@ class Simulator:
                     return
                 if calls > 100000:
                     raise SimulationLimit("Too many wait_until polls")
-                sim.advance(min(poll, deadline - sim.time))
+                sim.advance(min(poll if poll else .001, deadline - sim.time))
                 calls += 1
 
         def interval(count, period):
-            if type(count) is not int:
+            if not isinstance(count, int) or not -(2**63) <= count < 2**63:
                 raise TypeError("interval(count, period) expects an integer count")
-            if not isinstance(period, Quantity) or period.kind != "s":
+            if not isinstance(period, Quantity) or period._kind != "s":
                 raise TypeError("interval expects a Duration")
             sim.sync_clock()
             start = sim.time
             for i in range(count):
                 sim.sync_clock()
-                sim.advance(max(0, start + i * period.raw - sim.time))
+                sim.advance(max(0, start + i * period._raw - sim.time))
                 yield i
 
         def send(name, *args):
@@ -631,9 +734,9 @@ class Simulator:
             for valve, state in safe_states.items():
                 if not isinstance(valve, Valve) or not isinstance(state, tuple) or len(state) != 2:
                     raise TypeError("Each safe state must map Valve to (ValveState, timer)")
-                if state[0] not in (ValveState.Open, ValveState.Closed) or type(state[1]) is not int or not 0 <= state[1] <= 0xFFFFFFFF:
+                if not isinstance(state[0], ValveState) or state[0] not in (ValveState.Open, ValveState.Closed) or type(state[1]) is not int or not 0 <= state[1] <= 0xFFFFFFFF:
                     raise TypeError("Safe states require OPEN/CLOSED and a u32 millisecond timer")
-                checked[valve.name] = state
+                checked[valve.name] = (state[0]._name.upper(), state[1])
             sim.define_abort_stage(name, condition, checked, sim.source_line())
 
         def set_abort_stage(name):
@@ -647,9 +750,13 @@ class Simulator:
             sim.aborted = False
             send("clear_abort_status")
 
+        class ValveSafeState:
+            def __new__(cls, *args, **kwargs):
+                raise TypeError("No constructor defined")
+
         names = {
             "Valve": Valve, "Sensor": Sensor, "ValveState": ValveState,
-            "ValveSafeState": dict, "IntervalIterator": type(interval(0, Quantity(1, "s"))),
+            "ValveSafeState": ValveSafeState, "IntervalIterator": type(interval(0, make_quantity(1, "s"))),
             "OPEN": ValveState.Open, "CLOSED": ValveState.Closed,
             "wait_for": wait_for, "wait_until": wait_until, "interval": interval,
             "create_abort_stage": create_abort_stage, "set_abort_stage": set_abort_stage,
@@ -659,7 +766,7 @@ class Simulator:
             "abort": abort, "clear_abort_status": clear_abort_status,
             "send_reco_launch": lambda: send("send_reco_launch"),
             "reco_init_ekf": lambda: send("reco_init_ekf"),
-            "read_umbilical_voltage": lambda: Quantity(0, "V"),
+            "read_umbilical_voltage": lambda: make_quantity(0, "V"),
             "reco_recvd_launch": lambda: False,
             "launch_lug_arm": lambda host, enabled: send("launch_lug_arm", strict_string(host), strict_bool(enabled)),
             "launch_lug_detonate": lambda host, enabled: send("launch_lug_detonate", strict_string(host), strict_bool(enabled)),
@@ -669,14 +776,39 @@ class Simulator:
         }
         for name, kind in (("Current", "A"), ("Duration", "s"), ("ElectricPotential", "V"),
                            ("Force", "lbf"), ("Pressure", "psi"), ("Temperature", "K")):
-            names[name] = lambda value, k=kind: Quantity(value, k)
+            names[name] = QUANTITY_TYPES[name]
         for name, kind, factor in (("A", "A", 1), ("mA", "A", 0.001),
                                    ("s", "s", 1), ("ms", "s", 0.001), ("us", "s", 0.000001),
                                    ("V", "V", 1), ("mV", "V", 0.001), ("lbf", "lbf", 1),
                                    ("psi", "psi", 1), ("K", "K", 1)):
-            names[name] = Quantity(factor, kind)
+            names[name] = make_quantity(factor, kind)
+        def bind_signature(function, signature):
+            parameters = [inspect.Parameter(param, inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                            default=None if kind.startswith("Option<") else inspect.Parameter.empty)
+                          for param, kind in signature]
+            expected = inspect.Signature(parameters)
+            def bound(*args, **kwargs):
+                values = expected.bind(*args, **kwargs)
+                values.apply_defaults()
+                return function(*values.arguments.values())
+            return bound
+
+        # The public Rust parameter names are also Python keyword names.
+        for function_name, signature in FUNCTIONS.items():
+            names[function_name] = bind_signature(names[function_name], signature)
+        Valve.actuate = bind_signature(Valve.actuate, (("self", "&Self"), ("open", "bool")))
         for key, value in names.items():
             setattr(module, key, value)
+        # Fail closed when the manifest gained exports or methods without a
+        # corresponding simulator implementation. CI exercises this path.
+        missing = API - set(names)
+        unexpected = set(names) - API
+        if missing or unexpected:
+            raise RuntimeError(f"Luna simulator export mismatch: missing={missing}, unexpected={unexpected}")
+        for cls, simulated in (("Valve", Valve), ("Sensor", Sensor)):
+            methods = {name for name in vars(simulated) if not name.startswith("_")}
+            if methods != set(METHODS[cls]):
+                raise RuntimeError(f"Luna simulator {cls} methods mismatch: {methods} != {set(METHODS[cls])}")
         module.__all__ = list(names)
         return module
 
@@ -739,7 +871,9 @@ def run_sequence(source, mapping, execute=False, options=None):
         return result
     result["checks"]["syntax"] = "pass"
     for stage in ("names", "api"):
-        result["checks"][stage] = "fail" if any(d["stage"] == stage and d["severity"] == "error" for d in result["diagnostics"]) else "pass"
+        result["checks"][stage] = "fail" if any(d["stage"] == stage and d["severity"] == "error" for d in result["diagnostics"]) else (
+            "partial" if stage == "api" and any(d["stage"] == "api" and d["message"].startswith("API not fully verified:")
+                                                for d in result["diagnostics"]) else "pass")
     if not execute or any(d["severity"] == "error" for d in result["diagnostics"]):
         return result
 

@@ -51,3 +51,11 @@ test("the single abort-stage example triggers from a valve-driven sensor", () =>
   assert.equal(result.simulation.aborted, true);
   assert.equal(configurations.maps.abort.sensors[0].mode, "valve");
 });
+
+test("Vespula prePress matches the original Notion code including tabs", () => {
+  const original = readFileSync(new URL('./fixtures/luna/vespula-prepress.py', import.meta.url),'utf8');
+  assert.equal(configurations.examples.vespula, original.replace(/\n$/, ''));
+  const result = simulate('vespula');
+  assert.equal(result.checks.runtime,'pass',JSON.stringify(result.diagnostics));
+  assert.equal(result.virtual_time,20.005);
+});

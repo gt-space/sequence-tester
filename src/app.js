@@ -1,3 +1,4 @@
+import { validCompatibilityStatus } from "./compatibility.js";
 import { highlightPython } from "./highlight.js";
 import { createEnvironmentEditor, parseEnvironmentFile, serializeEnvironmentFile } from "./environment.js";
 import { createTimelineView } from "./timeline.js";
@@ -8,7 +9,7 @@ const EXAMPLES = {
   vespula: "# tank pre press sequence\nimport time\nprint('Pre Press Sequence has begun')\n\n# define pressure variables\nftpt_target = 416*psi # psia, target fuel tank pressure\notpt_target = 357*psi # psia, target lox tank pressure\nupRan = 2*psi # psi, upper range bound for bang bang algorithm\nlowRan = 3*psi # psi, lower range bound for bang bang algorithm\n\n# time variables\npress_time = 20 # s, sequence duration\nwait_timing = 5 # ms\n\n# confirm switch closed\nFSWV.close()\nOSWV.close()\nwait_for(wait_timing*ms)\n\n# initialize valve state variables\nFBB.close()\nFBBopen = False # hardcoded for consistency\nOBB.close()\nOBBopen = False # hardcoded due to feedback issues on sam-21\n\nstart_time = time.time() # s, current time\n\n# press tanks with bang bang algorithm\nwhile time.time() < start_time + press_time:\n\t# check pressures\n\tcurrFTPT = FTPT.read()\n\tcurrOTPT = OTPT.read()\n\t# bang bang algorithm\n\tif FBBopen and currFTPT > ftpt_target + upRan:\n\t\tFBB.close()\n\t\tFBBopen = False\n\telif (not FBBopen) and currFTPT < ftpt_target - lowRan:\n\t\tFBB.open()\n\t\tFBBopen = True\n\tif OBBopen and currOTPT > otpt_target + upRan:\n\t\tOBB.close()\n\t\tOBBopen = False\n\telif (not OBBopen) and currOTPT < otpt_target - lowRan:\n\t\tOBB.open()\n\t\tOBBopen = True\n\twait_for(wait_timing*ms)\n\nOBB.close()\nFBB.close()\n\nprint('Pre Press Sequence has ended')",
   tank: `press_valve.open()\nwait_until(lambda: tank_pt.read() >= 300 * psi, 5 * s)\npress_valve.close()\nprint("Tank press sequence finished")`,
   pulse: `press_valve.open()\nwait_for(500 * ms)\npress_valve.close()\nwait_for(250 * ms)\nvent_valve.open()\nwait_for(250 * ms)\nvent_valve.close()`,
-  abort: `# Abort triggers when the configured tank pressure exceeds 250 psi\ncreate_abort_stage(\n    "PRESSURIZATION",\n    "tank_pt > 250*psi",\n    {press_valve: (CLOSED, 500), vent_valve: (OPEN, 1000)}\n)\nset_abort_stage("PRESSURIZATION")\npress_valve.open()\nwait_for(5*s)\nprint("Only reached if the abort condition never triggers")`,
+  abort: `# Abort triggers when the configured tank pressure exceeds 250 psi\ncreate_abort_stage(\n    "PRESSURIZATION",\n    "tank_pt.read() > 250*psi",\n    {press_valve: (CLOSED, 500), vent_valve: (OPEN, 1000)}\n)\nset_abort_stage("PRESSURIZATION")\npress_valve.open()\nwait_for(5*s)\nprint("Only reached if the abort condition never triggers")`,
   abort_two: `# Adapted from YJSP Notion's GROUND and FILLING examples.\n# Demonstration thresholds only; not approved operational limits.\n# Safing timers are integer MILLISECONDS in current Luna.\ncreate_abort_stage(\n    "GROUND",\n    "PT.read() > 50*psi",\n    {press_valve: (CLOSED, 0), vent_valve: (OPEN, 0)}\n)\ncreate_abort_stage(\n    "FILLING",\n    "load_cell.read() > 40*lbf",\n    {press_valve: (CLOSED, 5000), vent_valve: (OPEN, 0)}\n)\nset_abort_stage("GROUND")\nwait_for(1*s)\nset_abort_stage("FILLING")\npress_valve.open()\nwait_for(5*s)\nprint("No abort triggered")`,
   feedback: `# Idealized pressure feedback demo (not a physical tank model)\nCISO.open()\nwait_until(lambda: CTPT.read() >= 340*psi, 5*s)\nCISO.close()\nCMV.open()\nwait_until(lambda: CTPT.read() <= 250*psi, 5*s)\nCMV.close()\nprint("Pressure-control sequence complete")`,
   import: `press_valve.open()\ntime.sleep(1)\npress_valve.close()`,
@@ -63,6 +64,69 @@ const FEEDBACK_MAPPING = {
 EXAMPLE_MAPPINGS.feedback = FEEDBACK_MAPPING;
 
 const $ = id => document.getElementById(id);
+
+const COMPATIBILITY_STATUS_URL =
+  "https://raw.githubusercontent.com/gt-space/sequence-tester/compatibility-status/status.json";
+
+function showLunaCompatibility(state, label, detail) {
+  const banner = $("luna-compatibility");
+  if (!banner) return;
+  banner.dataset.state = state;
+  $("compatibility-label").textContent = label;
+  $("compatibility-detail").textContent = detail;
+}
+
+async function checkLunaCompatibility() {
+  let baseline;
+  try {
+    const response = await fetch("./compatibility-build.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("Missing deployed build metadata");
+    baseline = await response.json();
+    if (!validCompatibilityStatus(baseline, "build")) {
+      throw new Error("Invalid deployed build metadata");
+    }
+  } catch {
+    showLunaCompatibility("warning", "LUNA API STATUS UNKNOWN",
+                          "No validated Luna revision metadata is available for this local build.");
+    return;
+  }
+
+  const buildSha = baseline.luna_sha.slice(0, 8);
+  try {
+    const cacheKey = Math.floor(Date.now() / 3600000);
+    const response = await fetch(COMPATIBILITY_STATUS_URL + "?v=" + cacheKey, { cache: "no-store" });
+    if (!response.ok) throw new Error("Upstream compatibility status unavailable");
+    const latest = await response.json();
+    if (!validCompatibilityStatus(latest, "live")) {
+      throw new Error("Invalid live compatibility status");
+    }
+    const checked = Date.parse(latest.checked_at);
+    if (!Number.isFinite(checked) || Date.now() - checked > 48 * 3600 * 1000 ||
+        checked > Date.now() + 5 * 60 * 1000) {
+      showLunaCompatibility("warning", "LUNA API CHECK STALE",
+                            "Deployed against Luna " + buildSha + "; latest check is not recent.");
+    } else if (latest.tester_sha !== baseline.tester_sha) {
+      showLunaCompatibility("warning", "LUNA API CHECK UNVERIFIED",
+                            "Deployed against Luna " + buildSha +
+                            "; compatibility check belongs to a different tester revision.");
+    } else if (!latest.compatible) {
+      showLunaCompatibility("warning", "LUNA API DRIFT DETECTED",
+                            "Deployed against Luna " + buildSha +
+                            "; upstream " + latest.luna_sha.slice(0, 8) +
+                            " differs from the tested API. Do not rely on API compatibility.");
+    } else {
+      showLunaCompatibility("verified", "LUNA API SOURCE BASELINE MATCHES",
+                            "Luna " + latest.luna_sha.slice(0, 8) +
+                            " · tester " + baseline.tester_sha.slice(0, 8) +
+                            " · API source matches reviewed baseline; executed simulation paths are not full Python API certification. Mappings and units must match the vehicle.");
+    }
+  } catch {
+    showLunaCompatibility("warning", "LUNA API STATUS UNAVAILABLE",
+                          "Deployed against Luna " + buildSha +
+                          "; cannot confirm the current upstream API status.");
+  }
+}
+checkLunaCompatibility();
 const source = $("source");
 const sequenceName = $("sequence-name");
 function setSequenceName(value) {
@@ -353,8 +417,8 @@ function render(result) {
     const el = document.querySelector(`[data-check="${name}"]`);
     if (!el) continue;
     el.dataset.state = state;
-    el.querySelector(".check-icon").textContent = state === "pass" ? "✓" : state === "fail" ? "!" : "—";
-    el.querySelector(".check-status").textContent = state === "pass" ? "Passed" : state === "fail" ? "Failed" : "Not run";
+    el.querySelector(".check-icon").textContent = state === "pass" ? "✓" : state === "fail" ? "!" : state === "partial" ? "?" : "—";
+    el.querySelector(".check-status").textContent = state === "pass" ? "Passed" : state === "fail" ? "Failed" : state === "partial" ? "Partially verified" : "Not run";
   }
   const diagnostics = result.diagnostics || [];
   $("issue-count").textContent = diagnostics.length;

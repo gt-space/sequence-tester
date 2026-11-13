@@ -40,9 +40,22 @@ node --check src/timeline.js
 node --check src/worker.js
 node --test tests/test_environment.mjs tests/test_filename.mjs tests/test_saved_sequences.mjs tests/test_timeline.mjs tests/test_timeline_ui.mjs tests/test_examples.mjs
 python3 scripts/check_luna_contract.py /path/to/luna-main
+python3 scripts/generate_luna_contract.py /path/to/luna-main  # verify extracted contract
 ```
 
-GitHub Actions runs these checks on **every branch push and PR**, and daily. CI checks out **Luna's current `main`** and fails if the Rust/PyO3 exports, public function/method signatures, quantity definitions, valve-state enum, or FC Python prelude diverge from `src/luna_contract.py`. This intentionally blocks an unnoticed API change; semantic changes may still require manual review and simulator updates. The real-browser regression exercises late valve events, synchronized cursors, saved test restoration, strict API diagnostics, and abort-stage/safing displays. When it fails, CI uploads browser state and a screenshot as `browser-regression-failure` for diagnosis. Only a push to `main` deploys the static site through GitHub Pages.
+GitHub Actions runs these checks on **every branch push and PR**, and daily. CI checks out **Luna's current main** (read-only) and fails on drift in public signatures, exports, unit definitions, the Flight2 prelude, valve states, and detected Sensor comparison order. The independent Rust-source extractor can generate the contract; simulator export/method coverage checks fail if a new API name lacks support. Behavioral changes beyond these checks still require review. The real-browser regression exercises late valve events, synchronized cursors, saved test restoration, strict API diagnostics, and abort-stage/safing displays. When it fails, CI uploads browser state and a screenshot as `browser-regression-failure` for diagnosis. Only a push to `main` deploys the static site through GitHub Pages.
+
+## Staying aligned with upstream Luna
+
+Luna is the source of truth. The tester does not require Luna changes or access to write to its repository.
+
+- **Contract extraction:** Run scripts/generate_luna_contract.py /path/to/luna --write to regenerate src/luna_contract.py from upstream Rust/PyO3 bindings. The result is reviewable, not automatically merged. CI verifies both the extractor and the committed contract.
+- **Continuous monitoring:** The Monitor Luna API compatibility GitHub Action runs daily on the default branch. It publishes an independent live status even after API drift. When the extractor can represent a changed surface, it opens a draft API-update pull request; maintainers must complete behavior/tests before merging. Creating automated PRs requires that the repository permits GitHub Actions to create pull requests.
+- **Deployed version and live status:** Each Pages build ships a tested Luna and tester commit identifier. The site fetches live status from the public compatibility-status branch. Missing, stale, failed, or mismatched results are shown as warnings rather than a successful compatibility claim.
+- **Dynamic calls:** Known Luna function aliases and bound device-method aliases are checked. Dynamic getattr with an unknown method name is marked partially verified, even when an executed simulation path succeeds.
+- **Direct Sensor comparisons:** Luna's current Sensor rich comparison evaluates the threshold against the sensor reading, reversing the intuitive meaning of direct comparisons. The simulator mirrors it. Use explicit sensor .read() in thresholds; the validator warns about direct comparisons. The contract extractor also tracks upstream comparison order.
+
+This verifies a selected Python API surface on Luna main, not arbitrary implementation semantics, a particular installed Flight2/SAM build, or physical safety. Valve feedback and aborts remain intentionally idealized.
 
 ## Test Environment
 

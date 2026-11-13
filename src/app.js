@@ -353,8 +353,8 @@ function render(result) {
     const el = document.querySelector(`[data-check="${name}"]`);
     if (!el) continue;
     el.dataset.state = state;
-    el.querySelector(".check-icon").textContent = state === "pass" ? "✓" : state === "fail" ? "!" : "—";
-    el.querySelector(".check-status").textContent = state === "pass" ? "Passed" : state === "fail" ? "Failed" : "Not run";
+    el.querySelector(".check-icon").textContent = state === "pass" ? "✓" : state === "fail" ? "!" : state === "partial" ? "?" : "—";
+    el.querySelector(".check-status").textContent = state === "pass" ? "Passed" : state === "fail" ? "Failed" : state === "partial" ? "Partially verified" : "Not run";
   }
   const diagnostics = result.diagnostics || [];
   $("issue-count").textContent = diagnostics.length;

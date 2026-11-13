@@ -1,0 +1,57 @@
+[
+  {
+    "mutation": "removed export",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "added export",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "renamed parameter",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "changed signature",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "changed optional",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "binding attributes",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "unit behavior",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "measurement conversion",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "enum state",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "prelude",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  },
+  {
+    "mutation": "sensor ordering",
+    "check_luna_contract.py": 1,
+    "generate_luna_contract.py": 1
+  }
+]

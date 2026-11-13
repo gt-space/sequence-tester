@@ -1,3 +1,4 @@
+import { validCompatibilityStatus } from "./compatibility.js";
 import { highlightPython } from "./highlight.js";
 import { createEnvironmentEditor, parseEnvironmentFile, serializeEnvironmentFile } from "./environment.js";
 import { createTimelineView } from "./timeline.js";
@@ -81,8 +82,7 @@ async function checkLunaCompatibility() {
     const response = await fetch("./compatibility-build.json", { cache: "no-store" });
     if (!response.ok) throw new Error("Missing deployed build metadata");
     baseline = await response.json();
-    if (baseline.schema_version !== 1 || baseline.mode !== "build" ||
-        !baseline.luna_sha || !baseline.tester_sha) {
+    if (!validCompatibilityStatus(baseline, "build")) {
       throw new Error("Invalid deployed build metadata");
     }
   } catch {
@@ -97,8 +97,7 @@ async function checkLunaCompatibility() {
     const response = await fetch(COMPATIBILITY_STATUS_URL + "?v=" + cacheKey, { cache: "no-store" });
     if (!response.ok) throw new Error("Upstream compatibility status unavailable");
     const latest = await response.json();
-    if (latest.schema_version !== 1 || latest.mode !== "live" ||
-        !latest.luna_sha || !latest.checked_at || typeof latest.compatible !== "boolean") {
+    if (!validCompatibilityStatus(latest, "live")) {
       throw new Error("Invalid live compatibility status");
     }
     const checked = Date.parse(latest.checked_at);
@@ -116,10 +115,10 @@ async function checkLunaCompatibility() {
                             "; upstream " + latest.luna_sha.slice(0, 8) +
                             " differs from the tested API. Do not rely on API compatibility.");
     } else {
-      showLunaCompatibility("verified", "LUNA API CONTRACT VERIFIED",
+      showLunaCompatibility("verified", "LUNA API SOURCE BASELINE MATCHES",
                             "Luna " + latest.luna_sha.slice(0, 8) +
                             " · tester " + baseline.tester_sha.slice(0, 8) +
-                            " · Python API surface checked; simulation is not hardware verification.");
+                            " · API source matches reviewed baseline; executed simulation paths are not full Python API certification. Mappings and units must match the vehicle.");
     }
   } catch {
     showLunaCompatibility("warning", "LUNA API STATUS UNAVAILABLE",

@@ -29,7 +29,7 @@ jobs:
         id: drift
         shell: bash
         run: |
-          if python scripts/check_luna_contract.py /tmp/luna-api > /tmp/luna-drift.txt 2>&1 && python scripts/generate_luna_contract.py /tmp/luna-api >> /tmp/luna-drift.txt 2>&1; then
+          if python scripts/check_luna_contract.py /tmp/luna-api > /tmp/luna-drift.txt 2>&1 && python scripts/generate_luna_contract.py /tmp/luna-api >> /tmp/luna-drift.txt 2>&1 && python -m unittest discover -s tests >> /tmp/luna-drift.txt 2>&1; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -53,9 +53,9 @@ jobs:
         if: steps.drift.outputs.changed == 'true'
         shell: bash
         run: |
-          git checkout main
+          git fetch origin main:refs/remotes/origin/main
+          git checkout -B automation/luna-api-drift origin/main
           python scripts/generate_luna_contract.py /tmp/luna-api --write
-          git checkout -B automation/luna-api-drift
           git add src/luna_contract.py
           if git diff --cached --quiet; then
             echo "Luna drift is not representable by an API-surface change; manual inspection required." >> "$GITHUB_STEP_SUMMARY"
@@ -67,4 +67,9 @@ jobs:
             gh pr create --draft --base main --head automation/luna-api-drift \
               --title "chore: review upstream Luna API drift" \
               --body "Auto-generated downstream contract update from Luna main. **DO NOT MERGE** until simulated behavior and regression coverage are updated and CI passes. Luna is read-only. Review the latest Monitor Luna API compatibility action for the upstream SHA and drift reason."
+          elif [ "$(gh pr view automation/luna-api-drift --json isDraft --jq '.isDraft')" != "true" ]; then
+            gh pr ready automation/luna-api-drift --undo
           fi
+      - name: Fail the monitor when drift or regressions were detected
+        if: steps.drift.outputs.changed == 'true'
+        run: exit 1

@@ -43,7 +43,7 @@ python3 scripts/check_luna_contract.py /path/to/luna-main
 python3 scripts/generate_luna_contract.py /path/to/luna-main  # verify extracted contract
 ```
 
-GitHub Actions runs these checks on **every branch push and PR**, and daily. CI checks out **Luna's current main** (read-only) and fails on drift in public signatures, exports, unit definitions, the Flight2 prelude, valve states, and detected Sensor comparison order. The independent Rust-source extractor can generate the contract; simulator export/method coverage checks fail if a new API name lacks support. Behavioral changes beyond these checks still require review. The real-browser regression exercises late valve events, synchronized cursors, saved test restoration, strict API diagnostics, and abort-stage/safing displays. When it fails, CI uploads browser state and a screenshot as `browser-regression-failure` for diagnosis. Only a push to `main` deploys the static site through GitHub Pages.
+GitHub Actions runs these checks on **every branch push and PR**, and daily. CI checks out **Luna's current main** (read-only) and checks public signatures, exports, units, the Flight2 prelude, and reviewed source fingerprints. Any change to the fingerprinted implementation requires review and regression coverage. The independent Rust-source extractor can generate the contract; simulator export/method coverage checks fail if a new API name lacks support. Behavioral changes beyond these checks still require review. The real-browser regression exercises late valve events, synchronized cursors, saved test restoration, strict API diagnostics, and abort-stage/safing displays. When it fails, CI uploads browser state and a screenshot as `browser-regression-failure` for diagnosis. Only a push to `main` deploys the static site through GitHub Pages.
 
 ## Staying aligned with upstream Luna
 
@@ -152,3 +152,9 @@ The supported sequence API is modeled after `common/src/sequence/{mod,func,devic
 - Source and mapping JSON stay in the visitor's `localStorage` and are not uploaded. Downloaded files are generated locally.
 
 When Luna's binding surface changes, the daily contract check fails until `src/luna_contract.py`, the validator, simulator, and regression tests have been reviewed and updated together. This is API-surface synchronization, not certification of the flight software's internal semantics.
+
+## Independent compatibility audit
+
+See [the audit report](reports/LUNA_COMPAT_AUDIT.md) for exact upstream revisions, compiled extracted-binding evidence, reproducible commands, fixes, and remaining limitations. A matching source baseline is not full Python API certification. In particular, current upstream GUI Unicode transport, first-line compound statements in Flight2, and omitted `wait_until` timeouts have portability limitations. Browser simulation warns about these cases while preserving the original source.
+
+Run the additional browser audit with `NODE_PATH=/tmp/sequence-browser/node_modules node tests/test_audit_browser.cjs`. To reproduce the isolated compiled comparison test, archive Luna's desired remote revision outside its working tree, run `scripts/build_luna_audit_harness.py ARCHIVE OUTPUT`, compile that disposable crate, and run the probe scripts as documented in the report. The harness has no FC IPC.

@@ -4,6 +4,7 @@ This intentionally extracts the supported PyO3 surface, not flight/SAM behavior.
 Run: python scripts/generate_luna_contract.py /path/to/luna --write
 The bot opens a reviewable PR; it never auto-merges behavioral changes.
 """
+import hashlib
 import argparse
 import pprint
 import re
@@ -91,6 +92,9 @@ def extract(repo):
         else:
             raise ValueError(f"Unrecognized Flight2 mapping prelude for {name}")
     return {
+        "SOURCE_HASHES": {str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest()
+                          for path in sorted([seq / "mod.rs", seq / "func.rs", seq / "device.rs", seq / "unit.rs", repo / "common/src/comm/gui.rs", repo / "flight2/src/sequence.rs"] +
+                                             [repo / name for name in ("Cargo.lock", "common/Cargo.toml", "common/src/comm/flight.rs", "common/src/comm/sam.rs", "gui/src/system/SystemPages.tsx", "gui/src/comm.tsx", "servo/src/server/routes/sequence.rs") if (repo / name).is_file()])},
         "FUNCTIONS": functions,
         "METHODS": methods,
         "CONSTRUCTORS": constructors,
@@ -108,7 +112,7 @@ def render(contract):
     parts = ['"""Generated Luna Python API surface. DO NOT EDIT BY HAND.\n\n'
              'Run scripts/generate_luna_contract.py against a Luna checkout.\n'
              'Changes require simulator/test review before merge.\n"""\n']
-    for key in ("FUNCTIONS", "METHODS", "CONSTRUCTORS", "UNIT_CLASSES",
+    for key in ("SOURCE_HASHES", "FUNCTIONS", "METHODS", "CONSTRUCTORS", "UNIT_CLASSES",
                 "UNIT_CONSTANTS", "OTHER_CLASSES", "OTHER_EXPORTS",
                 "PRELUDE", "VALVE_STATES", "SENSOR_COMPARISON_ORDER"):
         value = contract[key]

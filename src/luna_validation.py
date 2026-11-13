@@ -212,12 +212,36 @@ class LunaApiChecker(ast.NodeVisitor):
             self.visit(node.value)
             self._track_assignment(node.target, node.value)
 
+    def visit_If(self, node):
+        if isinstance(node.test, ast.Constant) and not node.test.value:
+            self.visit(node.test)
+            start = len(self.errors)
+            for item in node.body:
+                self.visit(item)
+            for problem in self.errors[start:]:
+                problem["severity"] = "warning"
+                problem["message"] = "API not fully verified: unreachable branch: " + problem["message"]
+            for item in node.orelse:
+                self.visit(item)
+        else:
+            self.generic_visit(node)
+
     def visit_Call(self, node):
         name, owner = self.call_target(node.func)
+        if name is None and owner is None and not (
+                isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in {"time", "math"}):
+            self.record("API not fully verified: unresolved dynamic call target; simulation only checks executed paths", node, "warning")
         if (isinstance(node.func, ast.Name) and node.func.id == "getattr" and
                 len(node.args) >= 2):
             kind = self.type_of(node.args[0])
             cls = "Valve" if kind == "valve" else "Sensor" if kind.startswith("sensor:") else None
+            if kind.startswith("quantity:"):
+                attr = node.args[1]
+                if isinstance(attr, ast.Constant) and isinstance(attr.value, str) and not attr.value.startswith("__"):
+                    self.record(f"Luna quantity classes do not expose .{attr.value}", node)
+                elif not isinstance(attr, ast.Constant):
+                    self.record("API not fully verified: dynamic quantity attribute access", node, "warning")
             if cls:
                 attr = node.args[1]
                 if isinstance(attr, ast.Constant) and isinstance(attr.value, str):
@@ -240,19 +264,27 @@ class LunaApiChecker(ast.NodeVisitor):
             if isinstance(first, ast.Constant) and isinstance(first.value, str):
                 pool = self.valves if name == "Valve" else self.sensors
                 if first.value not in pool:
-                    self.record(f"{name} '{first.value}' is not in the Test Environment", node)
+                    self.record(f"API not fully verified: {name} '{first.value}' is not in the Test Environment; construction is legal but device access needs a mapping", node, "warning")
+        if name == "wait_until" and owner is None:
+            timeout = node.args[1] if len(node.args) > 1 else next((k.value for k in node.keywords if k.arg == "timeout"), None)
+            if timeout is None or isinstance(timeout, ast.Constant) and timeout.value is None:
+                self.record("API not fully verified: upstream wait_until without timeout panicked in the extracted binding on this host (Instant + Duration::MAX); use an explicit finite timeout", node, "warning")
         if name == "create_abort_stage" and owner is None:
             self.check_abort_config(node)
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
+        kind = self.type_of(node.value)
+        owner = "Valve" if kind == "valve" else "Sensor" if kind.startswith("sensor:") else None
+        if owner and not node.attr.startswith("__") and node.attr not in METHODS[owner]:
+            self.record(f"{owner} does not expose attribute .{node.attr} in Luna's Python API", node)
         if isinstance(node.value, ast.Name) and node.value.id in self.common_modules:
             if node.attr not in COMMON_EXPORTS:
                 self.record(f"Luna's common module does not export '{node.attr}'", node)
         if isinstance(node.value, ast.Name) and node.value.id == "ValveState" and node.attr not in VALVE_STATES:
             self.record(f"Unknown Luna ValveState.{node.attr}", node)
-        if node.attr == "raw" and self.type_of(node.value).startswith("quantity:"):
-            self.record("Luna's PyO3 quantity classes do not expose a Python .raw attribute", node)
+        if not node.attr.startswith("__") and self.type_of(node.value).startswith("quantity:"):
+            self.record("Luna's PyO3 quantity classes do not expose public quantity attributes", node)
         self.generic_visit(node)
 
     def visit_BinOp(self, node):
@@ -267,19 +299,19 @@ class LunaApiChecker(ast.NodeVisitor):
             if SENSOR_COMPARISON_ORDER == "reversed":
                 self.record("Luna reverses direct Sensor comparison operands; use .read() for "
                             "the intended threshold direction", node, "warning")
-        for a, b in zip(terms, terms[1:]):
+        for a, b, op in zip(terms, terms[1:], node.ops):
             left, right = self.type_of(a), self.type_of(b)
             if left.startswith("sensor:"):
-                left = left.replace("sensor:", "quantity:")
+                left = "float" if left == "sensor:unknown" else left.replace("sensor:", "quantity:")
             if right.startswith("sensor:"):
-                right = right.replace("sensor:", "quantity:")
-            if left.startswith("quantity:") and right != "unknown" and left != right:
+                right = "float" if right == "sensor:unknown" else right.replace("sensor:", "quantity:")
+            if not isinstance(op, (ast.Eq, ast.NotEq)) and left.startswith("quantity:") and right != "unknown" and left != right:
                 self.record(f"Luna comparison mixes {left[9:]} with {right}", node)
         self.generic_visit(node)
 
     def check_signature(self, name, node, signature):
         if any(isinstance(arg, ast.Starred) for arg in node.args) or any(keyword.arg is None for keyword in node.keywords):
-            self.record(f"{name}() uses dynamic argument unpacking; full API check deferred to runtime", node, "warning")
+            self.record(f"API not fully verified: {name}() uses dynamic argument unpacking; simulation only checks executed paths", node, "warning")
             return
         expected = {param: kind for param, kind in signature}
         required = {param for param, kind in signature if not kind.startswith("Option<")}
@@ -310,11 +342,13 @@ class LunaApiChecker(ast.NodeVisitor):
             valid = {
                 "Duration": {"quantity:s"}, "String": {"str"}, "bool": {"bool"},
                 "&PyAny": {"callable"}, "&PyDict": {"dict"},
-                "u32": {"int"}, "i64": {"int"}, "f64": {"int", "float"},
+                "u32": {"int", "bool"}, "i64": {"int", "bool"}, "f64": {"int", "float", "bool"},
             }.get(kind)
             if valid and actual not in valid:
                 self.record(f"{name}() parameter '{param}' expects {kind}, got {actual}", value)
             value_integer = literal_integer(value)
+            if kind == "i64" and value_integer is not None and not -(2**63) <= value_integer < 2**63:
+                self.record(f"{name}() parameter '{param}' must fit a signed 64-bit integer", value)
             if kind == "u32" and value_integer is not None and not 0 <= value_integer <= 0xFFFFFFFF:
                 self.record(f"{name}() parameter '{param}' must fit an unsigned 32-bit integer", value)
 

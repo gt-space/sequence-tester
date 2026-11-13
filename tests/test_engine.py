@@ -83,8 +83,9 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["checks"]["api"], "fail")
 
     def test_unknown_sensor_mapping(self):
-        result = self.check("x = Sensor('missing')\nx.read()")
-        self.assertEqual(result["checks"]["api"], "fail")
+        result = self.check("x = Sensor('missing')\nx.read()", True)
+        self.assertEqual(result["checks"]["api"], "partial")
+        self.assertEqual(result["checks"]["runtime"], "fail")
 
     def test_mapping_constructor_type(self):
         result = self.check("x = Sensor('tank_pt')\nx.open()")

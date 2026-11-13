@@ -107,6 +107,12 @@ def check(repo):
     assert actual_order == SENSOR_COMPARISON_ORDER, (
         f"Luna sensor comparison semantics drifted: {actual_order} != {SENSOR_COMPARISON_ORDER}"
     )
+    # Signatures alone miss #[pyo3(signature=...)], scale factors and method bodies.
+    from generate_luna_contract import extract
+    import luna_contract
+    assert extract(repo)["SOURCE_HASHES"] == getattr(luna_contract, "SOURCE_HASHES", None), (
+        "Luna implementation changed; review behavior, defaults, and binding attributes before updating hashes"
+    )
     print("Luna Python API contract matches upstream bindings and flight prelude.")
 
 

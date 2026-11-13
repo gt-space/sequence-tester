@@ -220,5 +220,227 @@
         "digest": "sha256:2c0596f7ba2f1e335ecd374524bb46f54d0e26287e2b90080d3228b1651e9d40"
       }
     ]
+  },
+  {
+    "run_id": 43375248316,
+    "head_sha": "1bb42a935034fe49744baa841cb6e8f79c8179ff",
+    "event": "pull_request",
+    "conclusion": "success",
+    "url": "https://github.com/gt-space/sequence-tester/actions/runs/43375248316",
+    "jobs": [
+      {
+        "name": "test",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-python@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-node@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout current Luna API",
+            "conclusion": "success"
+          },
+          {
+            "name": "Capture exactly tested Luna revision",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify Luna API contract and extraction",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run dtolnay/rust-toolchain@stable",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install namespace test dependency",
+            "conclusion": "success"
+          },
+          {
+            "name": "Actual production binding in private namespaces",
+            "conclusion": "success"
+          },
+          {
+            "name": "Independent upstream drift mutation regressions",
+            "conclusion": "success"
+          },
+          {
+            "name": "Preserve compiled production binding evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Python regression tests",
+            "conclusion": "success"
+          },
+          {
+            "name": "JavaScript syntax",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install browser and Pyodide test runtime",
+            "conclusion": "success"
+          },
+          {
+            "name": "End-to-end Pyodide and plot cursor regression",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload browser failure diagnostics",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Post Run actions/setup-node@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-python@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "name": "deploy",
+        "conclusion": "skipped",
+        "steps": []
+      }
+    ],
+    "artifacts": [
+      {
+        "name": "production-binding-evidence",
+        "id": 14014800276,
+        "digest": "sha256:f7940de8e4473cd44c078b0c668f75af347a03bedffae3cb0b4b80d695380136"
+      }
+    ]
+  },
+  {
+    "run_id": 43375242515,
+    "head_sha": "1bb42a935034fe49744baa841cb6e8f79c8179ff",
+    "event": "push",
+    "conclusion": "success",
+    "url": "https://github.com/gt-space/sequence-tester/actions/runs/43375242515",
+    "jobs": [
+      {
+        "name": "test",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-python@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-node@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout current Luna API",
+            "conclusion": "success"
+          },
+          {
+            "name": "Capture exactly tested Luna revision",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify Luna API contract and extraction",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run dtolnay/rust-toolchain@stable",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install namespace test dependency",
+            "conclusion": "success"
+          },
+          {
+            "name": "Actual production binding in private namespaces",
+            "conclusion": "success"
+          },
+          {
+            "name": "Independent upstream drift mutation regressions",
+            "conclusion": "success"
+          },
+          {
+            "name": "Preserve compiled production binding evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Python regression tests",
+            "conclusion": "success"
+          },
+          {
+            "name": "JavaScript syntax",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install browser and Pyodide test runtime",
+            "conclusion": "success"
+          },
+          {
+            "name": "End-to-end Pyodide and plot cursor regression",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload browser failure diagnostics",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Post Run actions/setup-node@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-python@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "name": "deploy",
+        "conclusion": "skipped",
+        "steps": []
+      }
+    ],
+    "artifacts": [
+      {
+        "name": "production-binding-evidence",
+        "id": 14014855111,
+        "digest": "sha256:2716ad6cc5770bacb1064d29c4f41230cf689f4559afbfd542592031c2f96534"
+      }
+    ]
   }
 ]

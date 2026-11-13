@@ -214,3 +214,14 @@ Publication/draft automation uses shared code exercised by CI: true then false s
 No GUI/Servo service was launched, no real FC process consumed commands, and no asynchronous FC abort/acknowledgment/process-termination timing, physical valve feedback, board/device communications or safety behavior was tested. Mapping names/units remain external operator inputs and are not vehicle-certified. Complex Python remains outside the supported verification subset; it receives partial classification where detected rather than being labeled fully verified. Exceptions/custom classes/imports/reflection/rebinding/scopes/branch-dependent names/unknown argument types and unpacking do not become fully verified merely because one simulated path succeeds.
 
 **Decision: CONDITIONAL**, scoped to the supported API and matching external mappings. Unrestricted exact-script compatibility remains unsupported. Deterministic current-path incompatibilities block execution rather than green/partial success. The original source is preserved without fixes or rewriting. API signatures remain Luna's: the finite-timeout requirement is explicitly a portability policy for observed upstream failure. Physical-system safety is outside this work.
+
+
+### Final implementation verification
+
+Exact final implementation commit: `1bb42a935034fe49744baa841cb6e8f79c8179ff` (tree `06d0d21354cc603e0c29c7bcee523f3e49219f7c`). Both actual remote workflows succeeded with all final code/regressions:
+
+- PR: https://github.com/gt-space/sequence-tester/actions/runs/43375248316 — success, test job 131720102179.
+- Push: https://github.com/gt-space/sequence-tester/actions/runs/43375242515 — success, test job 131720083245.
+- Both include the actual unchanged production library in verified private namespaces, zero-poll regression, all 110 Python tests, 30 JS tests, both browser/Pyodide suites and drift mutations. Deploy remains skipped. The following report-only commit adds these outcomes and artifact metadata without changing implementation.
+
+The source tree of the local working copy was compared to each published GitHub tree before alignment. Luna's working tree/HEAD remain unchanged. PR #4 is kept draft and unmerged. No live FC/SAM resources or powered hardware were used or needed. The current CONDITIONAL verdict and operational publication/bot permission limitations above remain in force.

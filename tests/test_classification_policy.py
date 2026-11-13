@@ -31,3 +31,17 @@ class ClassificationPolicy(unittest.TestCase):
         text='# café\nvalve.open()\n'
         run_sequence(text,ENV,True)
         self.assertEqual(text,'# café\nvalve.open()\n')
+
+class DynamicBindings(unittest.TestCase):
+    def test_opaque_attribute_and_rebound_api_are_not_false_passes(self):
+        for source in ['holder=[valve]\nx=holder[0].name', 'import common\ncommon.wait_for = lambda: None\ncommon.wait_for()', 'valve_alias=valve\nvalve_alias.extra=True']:
+            result=run_sequence(source,ENV,False)
+            self.assertNotEqual(result['checks']['api'],'pass',result)
+    def test_rebound_api_is_not_falsely_rejected_as_original_signature(self):
+        result=run_sequence('wait_for = lambda: None\nwait_for()',ENV,True)
+        self.assertEqual(result['checks']['api'],'partial',result)
+        self.assertEqual(result['checks']['runtime'],'pass',result)
+    def test_valid_unpacked_timeout_is_partial_but_executes(self):
+        result=run_sequence('wait_until(**{"condition": lambda: True, "timeout": 1*s})',ENV,True)
+        self.assertEqual(result['checks']['api'],'partial',result)
+        self.assertEqual(result['checks']['runtime'],'pass',result)

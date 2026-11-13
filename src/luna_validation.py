@@ -84,6 +84,7 @@ class LunaApiChecker(ast.NodeVisitor):
         self.common_modules = {"common"}
         self.aliases = {}
         self.call_aliases = {}
+        self.shadowed = set()
 
     def constant_number(self, node):
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
@@ -182,6 +183,8 @@ class LunaApiChecker(ast.NodeVisitor):
 
     def call_target(self, func):
         if isinstance(func, ast.Name):
+            if func.id in self.shadowed and func.id not in self.call_aliases:
+                return None, None
             if func.id in self.call_aliases:
                 return self.call_aliases[func.id]
             return self.aliases.get(func.id, func.id), None
@@ -220,6 +223,11 @@ class LunaApiChecker(ast.NodeVisitor):
     def _track_assignment(self, target, value):
         if not isinstance(target, ast.Name):
             return
+        if target.id in COMMON_EXPORTS or target.id in self.valves or target.id in self.sensors or target.id in self.common_modules:
+            self.record("API not fully verified: injected API or module name is rebound", target, "warning")
+            self.shadowed.add(target.id)
+            self.common_modules.discard(target.id)
+            self.aliases.pop(target.id, None)
         self.types[target.id] = self.type_of(value)
         name, owner = self.call_target(value)
         if (owner and name in METHODS[owner]) or (owner is None and name in (set(FUNCTIONS) | set(CONSTRUCTORS))):
@@ -230,6 +238,8 @@ class LunaApiChecker(ast.NodeVisitor):
     def visit_Assign(self, node):
         self.visit(node.value)
         for target in node.targets:
+            if not isinstance(target, ast.Name):
+                self.record("API not fully verified: mutable or destructured assignment target", target, "warning")
             self._track_assignment(target, node.value)
 
     def visit_AnnAssign(self, node):
@@ -338,6 +348,8 @@ class LunaApiChecker(ast.NodeVisitor):
         if node.attr.startswith("_"):
             self.record("API not fully verified: private or special attribute reflection", node, "warning")
         kind = self.type_of(node.value)
+        if kind == "unknown" and not (isinstance(node.value, ast.Name) and node.value.id in self.common_modules | {"time", "math", "ValveState"}):
+            self.record("API not fully verified: attribute owner type is unknown", node, "warning")
         owner = "Valve" if kind == "valve" else "Sensor" if kind.startswith("sensor:") else None
         if owner and not node.attr.startswith("__") and node.attr not in METHODS[owner]:
             self.record(f"{owner} does not expose attribute .{node.attr} in Luna's Python API", node)

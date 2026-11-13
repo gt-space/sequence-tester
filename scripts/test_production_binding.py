@@ -14,6 +14,13 @@ import subprocess
 import tempfile
 
 ROOT=Path(__file__).resolve().parents[1]
+def namespace_prefix():
+    # bwrap >=0.9 initializes loopback when it creates the network namespace.
+    # Some hosted runners deny that netlink operation. unshare creates an
+    # entirely private network first; bwrap shares ONLY that outer private net.
+    return ['unshare','--user','--map-root-user','--mount','--ipc','--net','--pid','--fork',
+            'bwrap','--unshare-all','--share-net']
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source',type=Path)
@@ -22,7 +29,7 @@ def main():
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=True)
     if not shutil.which('bwrap'):raise SystemExit('BLOCKED: bubblewrap unavailable; no IPC test executed')
     # Probe all namespaces before building or importing production code.
-    subprocess.run(['bwrap','--unshare-all','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--proc','/proc','--dev','/dev','/usr/bin/true'],check=True)
+    subprocess.run(namespace_prefix()+['--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--proc','/proc','--dev','/dev','/usr/bin/true'],check=True)
     with tempfile.TemporaryDirectory(prefix='luna-production-') as tmp:
         work=Path(tmp)
         upstream=work/'upstream';shutil.copytree(args.source,upstream)
@@ -43,7 +50,7 @@ def main():
         # A host sentinel and namespace IDs provide independently checked negatives.
         sentinel=work/'HOST_SENTINEL';sentinel.write_text('must not be visible')
         namespaces={name:os.readlink('/proc/self/ns/'+name) for name in ['mnt','ipc','net','pid']}
-        cmd=['bwrap','--unshare-all','--die-with-parent','--new-session','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--proc','/proc','--dev','/dev','--tmpfs','/tmp','--dir','/dev/shm','--tmpfs','/dev/shm','--ro-bind',str(target/'debug'),'/build','--ro-bind',str(ROOT/'tests/production_binding'),'/tests','--ro-bind',str(ROOT/'src'),'/tester','--clearenv','--setenv','PATH','/usr/bin:/bin','--setenv','PYTHONPATH','/tmp:/tester','--setenv','AUDIT_HOST_NAMESPACES',json.dumps(namespaces),'--setenv','AUDIT_HOST_SENTINEL',str(sentinel),'/usr/bin/python3','/tests/probe.py']
+        cmd=namespace_prefix()+['--die-with-parent','--new-session','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--proc','/proc','--dev','/dev','--tmpfs','/tmp','--dir','/dev/shm','--tmpfs','/dev/shm','--ro-bind',str(target/'debug'),'/build','--ro-bind',str(ROOT/'tests/production_binding'),'/tests','--ro-bind',str(ROOT/'src'),'/tester','--clearenv','--setenv','PATH','/usr/bin:/bin','--setenv','PYTHONPATH','/tmp:/tester','--setenv','AUDIT_HOST_NAMESPACES',json.dumps(namespaces),'--setenv','AUDIT_HOST_SENTINEL',str(sentinel),'/usr/bin/python3','/tests/probe.py']
         result=subprocess.run(cmd,capture_output=True,text=True,timeout=120)
         (output/'production-binding.stdout').write_text(result.stdout)
         (output/'production-binding.stderr').write_text(result.stderr)

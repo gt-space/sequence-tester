@@ -295,7 +295,7 @@ class EngineTests(unittest.TestCase):
 
     def test_valid_luna_api_signatures(self):
         source = ("press_valve.actuate(True)\n"
-                  "wait_until(condition=lambda: tank_pt >= 300*psi, timeout=5*s, poll_interval=20*ms)\n"
+                  "wait_until(condition=lambda: tank_pt.read() >= 300*psi, timeout=5*s, poll_interval=20*ms)\n"
                   "launch_lug_arm('sam-21', False)\n"
                   "sam_camera_toggle(True)\n"
                   "set_servo_disconnect_abort(True)")
@@ -341,7 +341,7 @@ class EngineTests(unittest.TestCase):
             "name": "tank_pt", "unit": "psi", "interpolation": "linear",
             "samples": [{"at": 0, "value": 400}, {"at": 2, "value": 500}],
         }]}
-        source = ("create_abort_stage('press', 'tank_pt > 450*psi', {press_valve: (CLOSED, 500)})\n"
+        source = ("create_abort_stage('press', 'tank_pt.read() > 450*psi', {press_valve: (CLOSED, 500)})\n"
                   "set_abort_stage('press')\npress_valve.open()\nwait_for(4*s)\npress_valve.open()")
         result = self.check(source, True, mapping)
         self.assertEqual(result["checks"]["runtime"], "pass", result["diagnostics"])
@@ -357,7 +357,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(stage["triggered"], abort["time"])
 
     def test_abort_condition_not_exercised_warning(self):
-        source = ("create_abort_stage('press', 'tank_pt > 450*psi', {press_valve: (CLOSED, 500)})\n"
+        source = ("create_abort_stage('press', 'tank_pt.read() > 450*psi', {press_valve: (CLOSED, 500)})\n"
                   "set_abort_stage('press')\nwait_for(5*s)")
         result = self.check(source, True)
         self.assertEqual(result["checks"]["runtime"], "pass")
@@ -366,8 +366,8 @@ class EngineTests(unittest.TestCase):
         self.assertIsNone(result["simulation"]["abort_stages"][0]["triggered"])
 
     def test_stage_switch_and_multiple_safing_delays(self):
-        source = ("create_abort_stage('early', 'tank_pt > 500*psi', {})\n"
-                  "create_abort_stage('late', 'tank_pt > 300*psi', "
+        source = ("create_abort_stage('early', 'tank_pt.read() > 500*psi', {})\n"
+                  "create_abort_stage('late', 'tank_pt.read() > 300*psi', "
                   "{press_valve: (CLOSED, 0), vent_valve: (OPEN, 1000)})\n"
                   "set_abort_stage('early')\nwait_for(1*s)\n"
                   "set_abort_stage('late')\npress_valve.open()\nwait_for(3*s)\n"
@@ -418,7 +418,7 @@ class EngineTests(unittest.TestCase):
         self.assertIn("Unknown abort stage", result["diagnostics"][-1]["message"])
 
     def test_abort_condition_sensor_reads_link_back_to_definition(self):
-        source = ("create_abort_stage('safe', 'tank_pt > 400*psi', {})\n"
+        source = ("create_abort_stage('safe', 'tank_pt.read() > 400*psi', {})\n"
                   "set_abort_stage('safe')\nwait_for(1*s)")
         result = self.check(source, True)
         self.assertEqual(result["simulation"]["sensor_read_lines"]["tank_pt"], [1])

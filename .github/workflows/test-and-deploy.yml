@@ -13,6 +13,8 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    outputs:
+      luna_sha: ${{ steps.luna-revision.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,8 +25,13 @@ jobs:
           node-version: '22'
       - name: Checkout current Luna API
         run: git clone --depth=1 --branch=main https://github.com/gt-space/luna.git /tmp/luna-api
-      - name: Verify Python contract still matches Luna main
-        run: python scripts/check_luna_contract.py /tmp/luna-api
+      - name: Capture exactly tested Luna revision
+        id: luna-revision
+        run: echo "sha=$(git -C /tmp/luna-api rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Verify Luna API contract and extraction
+        run: |
+          python scripts/check_luna_contract.py /tmp/luna-api
+          python scripts/generate_luna_contract.py /tmp/luna-api
       - name: Python regression tests
         run: python -m unittest discover -s tests -v
       - name: JavaScript syntax
@@ -75,6 +82,7 @@ jobs:
           cp index.html site-dist/
           cp src/app.js src/environment.js src/filename.js src/saved-sequences.js src/highlight.js src/timeline.js src/worker.js src/styles.css src/engine.py src/luna_contract.py src/luna_validation.py src/yjsplogo.png site-dist/src/
           cp -r /tmp/sequence-pyodide/node_modules/pyodide site-dist/src/pyodide
+          python scripts/write_luna_status.py --mode build --luna-sha "${{ needs.test.outputs.luna_sha }}" --tester-sha "$GITHUB_SHA" --output site-dist/compatibility-build.json
           sed -i "s|./src/app.js|./src/app.js?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./src/styles.css|./src/styles.css?build=${GITHUB_SHA}|" site-dist/index.html
           sed -i "s|./highlight.js|./highlight.js?build=${GITHUB_SHA}|" site-dist/src/app.js

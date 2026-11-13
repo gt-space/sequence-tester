@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from luna_contract import (  # noqa: E402
     CONSTRUCTORS, FUNCTIONS, METHODS, OTHER_CLASSES, OTHER_EXPORTS,
-    PRELUDE, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES,
+    PRELUDE, UNIT_CLASSES, UNIT_CONSTANTS, VALVE_STATES, SENSOR_COMPARISON_ORDER,
 )
 
 
@@ -95,6 +95,16 @@ def check(repo):
     assert states, "Cannot locate Luna ValveState enum"
     found_states = set(re.findall(r"^\s{4}(\w+),\s*$", states.group(1), re.MULTILINE))
     assert found_states == VALVE_STATES, f"Luna valve states drifted: {found_states}"
+    # Detect changes to comparison semantics despite an unchanged PyO3 signature.
+    comparison = re.search(r"fn __richcmp__\\s*\\(.*?\\)\\s*->\\s*PyResult<bool>\\s*\\{(.*?)^    \\}",
+                           device, re.MULTILINE | re.DOTALL)
+    assert comparison, "Missing Sensor.__richcmp__; update the tester's behavior model"
+    richcmp = comparison.group(1)
+    actual_order = ("reversed" if "other.rich_compare(self.read()?, op)?" in richcmp else
+                    "normal" if "self.read()?.rich_compare(other, op)?" in richcmp else "unknown")
+    assert actual_order == SENSOR_COMPARISON_ORDER, (
+        f"Luna sensor comparison semantics drifted: {actual_order} != {SENSOR_COMPARISON_ORDER}"
+    )
     print("Luna Python API contract matches upstream bindings and flight prelude.")
 
 
